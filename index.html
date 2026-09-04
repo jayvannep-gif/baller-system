@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BASKETBALL CLUB SYSTEM</title>
     
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -13,7 +12,6 @@
     <link rel="stylesheet" href="style.css">
 
     <style>
-        /* Mobile-First Responsive Styles & Scrollbars */
         * { box-sizing: border-box; }
         body { margin: 0; font-family: 'Inter', sans-serif; background-color: #0b1120; color: #f8fafc; }
         
@@ -23,7 +21,6 @@
             padding-right: 4px;
         }
         
-        /* Custom scrollbar for better mobile look */
         .scrollable-container::-webkit-scrollbar { width: 6px; }
         .scrollable-container::-webkit-scrollbar-track { background: #0f172a; border-radius: 4px; }
         .scrollable-container::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
@@ -58,17 +55,16 @@
         const provider = new GoogleAuthProvider();
 
         const SUPER_ADMIN_EMAIL = "jayvannep@gmail.com";
+        const DEFAULT_GUEST_AVATAR = "https://ui-avatars.com/api/?name=Guest&background=334155&color=fff";
         let currentUserData = null;
         let isAdminUser = false;
 
-        // --- NAVIGATION ---
         window.navigateTo = (pageId) => {
             document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
             const target = document.getElementById(pageId);
             if (target) target.classList.remove('hidden');
         };
 
-        // --- AUTHENTICATION ---
         window.loginWithGoogle = async () => {
             try {
                 const result = await signInWithPopup(auth, provider);
@@ -132,7 +128,6 @@
             loadPersistentData();
         });
 
-        // --- REGISTRATION ---
         window.handleSignup = async (e) => {
             e.preventDefault();
             const user = auth.currentUser;
@@ -158,7 +153,6 @@
             checkUserStatus(user);
         };
 
-        // --- PROFILE EDITING ---
         function renderUserProfileCard(data) {
             const container = document.getElementById('user-profile-display');
             if (!container) return;
@@ -168,15 +162,15 @@
                     <img src="${data.photoURL || 'https://via.placeholder.com/150'}" style="width:60px; height:60px; border-radius:50%; object-fit:cover; border:2px solid var(--accent-blue);">
                     <div>
                         <h3 style="font-size:1.1rem; font-weight:700; margin:0;">${data.name}</h3>
-                        <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">${data.position} | ${data.height} cm</p>
+                        <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">${data.position} | ${data.height || "N/A"}</p>
                     </div>
                 </div>
                 <div style="display:grid; gap:8px;">
                     <label style="font-size:0.75rem; color:var(--text-muted);">Update Photo:</label>
                     <input type="file" id="self-avatar-input" accept="image/*" style="font-size:0.8rem;">
                     
-                    <label style="font-size:0.75rem; color:var(--text-muted);">Height (cm):</label>
-                    <input type="text" id="self-height-input" value="${data.height || ''}" style="margin:0;">
+                    <label style="font-size:0.75rem; color:var(--text-muted);">Height (ft'in"):</label>
+                    <input type="text" id="self-height-input" value="${data.height || ''}" placeholder="e.g. 5'9&quot;" style="margin:0;">
 
                     <label style="font-size:0.75rem; color:var(--text-muted);">Position:</label>
                     <select id="self-pos-input" style="margin:0;">
@@ -222,9 +216,7 @@
             }
         };
 
-        // --- REALTIME DATA LISTENERS ---
         function loadPersistentData() {
-            // Schedule & Notice Board Realtime
             onSnapshot(doc(db, "settings", "game_info"), (docSnap) => {
                 if (docSnap.exists()) {
                     const d = docSnap.data();
@@ -235,7 +227,6 @@
                 }
             });
 
-            // Photos Gallery
             onSnapshot(collection(db, "photos"), (snapshot) => {
                 const gallery = document.getElementById('photo-gallery');
                 if (!gallery) return;
@@ -259,7 +250,6 @@
                 });
             });
 
-            // Player Roster & Auto Matchmaking Realtime Listener
             onSnapshot(collection(db, "users"), (snapshot) => {
                 let attendingPool = [];
                 let allUsers = [];
@@ -267,11 +257,16 @@
                 snapshot.forEach(docSnap => {
                     const u = docSnap.data();
                     allUsers.push(u);
-                    if (u.status === 'in' && u.isApproved && !u.isBanned) {
-                        attendingPool.push({ uid: u.uid, name: u.name, position: u.position, photoURL: u.photoURL, isMain: true });
+
+                    // Allow Admin and Super Admin to be listed when status === 'in'
+                    const isSuperAdmin = (u.email === SUPER_ADMIN_EMAIL);
+                    const isEligibleUser = (u.isApproved || isSuperAdmin) && !u.isBanned;
+
+                    if (u.status === 'in' && isEligibleUser) {
+                        attendingPool.push({ uid: u.uid, name: u.name, position: u.position || 'PG', photoURL: u.photoURL || 'https://via.placeholder.com/150', isMain: true });
                         if (u.guests && u.guests.length > 0) {
                             u.guests.forEach(gName => {
-                                attendingPool.push({ uid: u.uid, name: `${gName} (${u.name}'s Guest)`, position: 'GUEST', photoURL: 'https://via.placeholder.com/150', isMain: false });
+                                attendingPool.push({ uid: u.uid, name: `${gName} (${u.name}'s Guest)`, position: 'GUEST', photoURL: DEFAULT_GUEST_AVATAR, isMain: false });
                             });
                         }
                     }
@@ -281,7 +276,6 @@
                 renderAdminUserManagement(allUsers);
             });
 
-            // Admin Messages Realtime Listener
             onSnapshot(collection(db, "messages"), (snapshot) => {
                 const container = document.getElementById('admin-messages-list');
                 if (!container) return;
@@ -313,14 +307,14 @@
             });
         }
 
-        // --- REALTIME AUTO MATCHMAKING ENGINE ---
+        // --- MATCHMAKING ENGINE (Starts at 5 players, fills set) ---
         function renderRosterAndMatchmaking(pool) {
             const rosterList = document.getElementById('active-roster-list');
             if (rosterList) {
                 rosterList.innerHTML = pool.length === 0 ? `<li style="color:var(--text-muted); list-style:none;">No players checked in yet.</li>` :
                     pool.map(p => `
                         <li style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-                            <img src="${p.photoURL || 'https://via.placeholder.com/150'}" style="width:28px; height:28px; border-radius:50%; object-fit:cover;">
+                            <img src="${p.photoURL}" style="width:28px; height:28px; border-radius:50%; object-fit:cover;" onerror="this.src='${DEFAULT_GUEST_AVATAR}'">
                             <span><strong>${p.name}</strong> - <span style="color:var(--text-muted);">${p.position}</span></span>
                         </li>
                     `).join('');
@@ -330,8 +324,8 @@
             if (!matchesContainer) return;
             matchesContainer.innerHTML = "";
 
-            if (pool.length < 10) {
-                matchesContainer.innerHTML = `<p style="color:var(--text-muted); font-size:0.9rem;">Insufficient players for a 5v5 game. Need at least 10 players. (Current Count: ${pool.length})</p>`;
+            if (pool.length < 5) {
+                matchesContainer.innerHTML = `<p style="color:var(--text-muted); font-size:0.9rem;">Waiting for at least 5 players to form a game set. (Current Count: ${pool.length})</p>`;
                 return;
             }
 
@@ -342,8 +336,14 @@
 
             if (startTimeStr.includes("6")) baseMinutes = 18 * 60;
 
-            while (currentPool.length >= 10) {
+            while (currentPool.length >= 5) {
                 let game10 = currentPool.slice(0, 10);
+                
+                // Fill up to 10 slots with Open Slots so match sets are complete 5v5
+                while (game10.length < 10) {
+                    game10.push({ name: `<i style="color: #64748b;">(OPEN SLOT)</i>` });
+                }
+
                 let teamA = game10.slice(0, 5);
                 let teamB = game10.slice(5, 10);
 
@@ -373,13 +373,12 @@
                 `;
                 matchesContainer.appendChild(card);
 
-                currentPool = currentPool.slice(10).concat(game10);
+                currentPool = currentPool.slice(10);
                 gameNumber++;
                 if (gameNumber > 5) break; 
             }
         }
 
-        // --- PLAYER / ADMIN PLAY ACTIONS ---
         window.setAttendance = async (status) => {
             const u = auth.currentUser;
             if (!u) return;
@@ -400,7 +399,6 @@
             alert(status === 'in' ? "Checked in successfully!" : "Play status canceled.");
         };
 
-        // --- MESSAGING & DELETE MESSAGE FEATURE ---
         window.sendPlayerMessage = async () => {
             const user = auth.currentUser;
             const text = document.getElementById('player-msg-input').value.trim();
@@ -472,7 +470,6 @@
             }
         };
 
-        // --- ADMIN PLAYER CONTROL LIST ---
         function renderAdminUserManagement(users) {
             const container = document.getElementById('admin-user-list');
             if (!container) return;
@@ -489,7 +486,7 @@
                             <img src="${u.photoURL || 'https://via.placeholder.com/150'}" style="width:36px; height:36px; border-radius:50%; object-fit:cover;">
                             <div>
                                 <p style="font-weight:700; margin:0; font-size:0.85rem;">${u.name} <span style="font-size:0.7rem; color:var(--text-muted);">(${u.email})</span></p>
-                                <p style="font-size:0.75rem; color:var(--text-muted); margin:0;">${u.position} | ${u.height}cm | Status: <strong style="color:${u.status === 'in' ? '#4ade80' : '#f87171'};">${u.status ? u.status.toUpperCase() : 'OUT'}</strong></p>
+                                <p style="font-size:0.75rem; color:var(--text-muted); margin:0;">${u.position} | ${u.height || "N/A"} | Status: <strong style="color:${u.status === 'in' ? '#4ade80' : '#f87171'};">${u.status ? u.status.toUpperCase() : 'OUT'}</strong></p>
                             </div>
                         </div>
                         <div style="display:flex; gap:4px; flex-wrap:wrap;">
@@ -509,7 +506,7 @@
             const newName = prompt("Edit Player Name:", currentName);
             if (newName === null) return;
 
-            const newHeight = prompt("Edit Height (cm):", currentHeight);
+            const newHeight = prompt("Edit Height (ft'in\"): ", currentHeight);
             if (newHeight === null) return;
 
             const newPosition = prompt("Edit Position:", currentPosition);
@@ -524,7 +521,6 @@
             alert("Player profile updated!");
         };
 
-        // --- SCHEDULE UPDATE WITH AUTOMATIC POOL & MATCHMAKING RESET ---
         window.updateScheduleAndNotice = async (e) => {
             e.preventDefault();
             
@@ -535,7 +531,6 @@
             try {
                 const batch = writeBatch(db);
 
-                // 1. Update Game Details
                 const gameInfoRef = doc(db, "settings", "game_info");
                 batch.set(gameInfoRef, {
                     date: document.getElementById('set-date').value,
@@ -544,7 +539,6 @@
                     announcement: document.getElementById('set-msg').value
                 });
 
-                // 2. Reset All Players' Attendance & Guests
                 const usersSnap = await getDocs(collection(db, "users"));
                 usersSnap.forEach((userDoc) => {
                     const userRef = doc(db, "users", userDoc.id);
@@ -554,7 +548,6 @@
                     });
                 });
 
-                // Commit the batch transaction
                 await batch.commit();
 
                 alert("Game Schedule updated! Player attendance pool and matchmaking have been reset for the new game.");
@@ -609,7 +602,6 @@
             await updateDoc(doc(db, "users", uid), { isBanned: shouldBan, banReason: reason });
         };
 
-        // --- SUPER ADMIN CONTROLS ---
         window.addAdmin = async () => {
             const email = document.getElementById('new-admin-email').value.trim();
             if (!email) return;
@@ -670,8 +662,8 @@
                 <label style="font-size: 0.75rem; color: var(--text-muted);">Full Name</label>
                 <input type="text" id="reg-name" placeholder="John Doe" required>
 
-                <label style="font-size: 0.75rem; color: var(--text-muted);">Height (cm)</label>
-                <input type="text" id="reg-h" placeholder="e.g. 175" required>
+                <label style="font-size: 0.75rem; color: var(--text-muted);">Height (ft'in")</label>
+                <input type="text" id="reg-h" placeholder="e.g. 5'9&quot;" required>
                 
                 <label style="font-size: 0.75rem; color: var(--text-muted);">Primary Position</label>
                 <select id="reg-p" required>
@@ -818,13 +810,11 @@
 
                 <div class="card" style="margin-bottom: 16px;">
                     <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px;">Player Approvals & Controls</h3>
-                    <!-- SCROLLABLE CONTAINER -->
                     <div id="admin-user-list" class="scrollable-container"></div>
                 </div>
 
                 <div class="card">
                     <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px;">Messages & Support Inbox</h3>
-                    <!-- SCROLLABLE CONTAINER -->
                     <div id="admin-messages-list" class="scrollable-container"></div>
                 </div>
             </div>
