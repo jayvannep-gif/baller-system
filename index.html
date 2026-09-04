@@ -3,14 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BALLER SYSTEM | B&W</title>
+    <title>BALLER APP | Management Portal</title>
+    
+    <!-- Google Fonts (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
     <link rel="stylesheet" href="style.css">
     
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCPoQ-8anpEqtozvXlJCoaxl3hOv4E5uIg",
@@ -28,20 +34,25 @@
 
         const SUPER_ADMIN_EMAIL = "jayvannep@gmail.com";
 
-        // --- GOOGLE LOGIN CONTAINER LOGIC ---
+        // Navigation Helper
+        window.navigateTo = (pageId) => {
+            document.querySelectorAll('.page').forEach(page => page.classList.add('hidden'));
+            const target = document.getElementById(pageId);
+            if (target) target.classList.remove('hidden');
+        };
+
+        // Login Logic
         window.loginWithGoogle = async () => {
             try {
                 const result = await signInWithPopup(auth, provider);
-                const user = result.user;
-                checkUserRegistration(user);
+                checkUserRegistration(result.user);
             } catch (error) {
-                alert("Login Failed: " + error.message);
+                alert("Login Error: " + error.message);
             }
         };
 
         window.logout = () => signOut(auth).then(() => location.reload());
 
-        // Check registration status in Firestore
         async function checkUserRegistration(user) {
             const userRef = doc(db, "users", user.uid);
             const userSnap = await getDoc(userRef);
@@ -49,41 +60,32 @@
             if (userSnap.exists()) {
                 const userData = userSnap.data();
                 if (userData.isBanned) {
-                    alert("YOUR ACCOUNT IS BANNED BY ADMIN.");
+                    alert("Your account is currently restricted.");
                     logout();
                     return;
                 }
-                // Registered user -> go to Dashboard
                 window.navigateTo('dashboard-page');
                 checkRole(user.email);
             } else {
-                // Not registered -> Show Registration Required prompt
                 window.navigateTo('not-registered-page');
             }
         }
 
-        // Role verification (Super Admin vs Admin vs Player)
         async function checkRole(email) {
             const adminBtn = document.getElementById('admin-nav-btn');
-            const superAdminBadge = document.getElementById('super-admin-badge');
+            const superBadge = document.getElementById('super-admin-badge');
             
             if (email === SUPER_ADMIN_EMAIL) {
                 if (adminBtn) adminBtn.classList.remove('hidden');
-                if (superAdminBadge) superAdminBadge.classList.remove('hidden');
-                document.getElementById('admin-role-title').innerText = "SUPER ADMIN PANEL";
+                if (superBadge) superBadge.classList.remove('hidden');
             } else {
-                // Check if user is listed in admins collection
                 const adminSnap = await getDoc(doc(db, "admins", email));
-                if (adminSnap.exists()) {
-                    if (adminBtn) adminBtn.classList.remove('hidden');
-                    document.getElementById('admin-role-title').innerText = "ADMIN PANEL";
-                } else {
-                    if (adminBtn) adminBtn.classList.add('hidden');
+                if (adminSnap.exists() && adminBtn) {
+                    adminBtn.classList.remove('hidden');
                 }
             }
         }
 
-        // Auth Listener
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 checkUserRegistration(user);
@@ -92,7 +94,7 @@
             }
         });
 
-        // --- REGISTRATION LOGIC ---
+        // Registration Logic
         window.handleSignup = async (e) => {
             e.preventDefault();
             const user = auth.currentUser;
@@ -112,30 +114,28 @@
             };
 
             await setDoc(doc(db, "users", user.uid), userData);
-            alert("REGISTRATION SUCCESSFUL!");
+            alert("Registration Complete!");
             window.navigateTo('dashboard-page');
         };
 
-        // --- REAL-TIME DATA SYNC ---
+        // Data Sync
         onSnapshot(doc(db, "settings", "game_info"), (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
-                document.getElementById('view-date').innerText = "DATE: " + (data.date || 'TBA');
-                document.getElementById('view-time').innerText = "TIME: " + (data.time || 'TBA');
-                document.getElementById('view-venue').innerText = "VENUE: " + (data.venue || 'TBA');
-                document.getElementById('view-announcement').innerText = data.announcement || 'NO ANNOUNCEMENT';
+                document.getElementById('view-date').innerText = data.date || 'TBA';
+                document.getElementById('view-time').innerText = data.time || 'TBA';
+                document.getElementById('view-venue').innerText = data.venue || 'TBA';
+                document.getElementById('view-announcement').innerText = data.announcement || 'No active announcements.';
             }
         });
 
-        // --- PLAYER SET ATTENDANCE ---
         window.setStatus = async (status) => {
             const user = auth.currentUser;
             if (!user) return;
             await updateDoc(doc(db, "users", user.uid), { status });
-            alert("STATUS UPDATED: " + status.toUpperCase());
+            alert("Attendance updated successfully!");
         };
 
-        // --- ADMIN UPDATES ---
         window.updateGame = async (e) => {
             e.preventDefault();
             await setDoc(doc(db, "settings", "game_info"), {
@@ -144,118 +144,149 @@
                 venue: document.getElementById('set-venue').value,
                 announcement: document.getElementById('set-msg').value
             });
-            alert("GAME DETAILS UPDATED!");
+            alert("Schedule updated!");
         };
     </script>
 </head>
 <body>
 
-    <!-- 1. LOGIN CONTAINER -->
+    <!-- 1. FORMAL LOGIN CONTAINER -->
     <div id="login-page" class="page">
-        <div class="hero-box border-bold">
+        <div class="hero-box max-w-md mx-auto">
             <h1 class="logo-text">BALLER<span>APP</span></h1>
-            <p class="mb-6 font-bold">LOGIN WITH GOOGLE TO SET YOUR GAME</p>
-            <button class="btn-main" onclick="loginWithGoogle()">LOG IN WITH GOOGLE</button>
+            <p style="color: var(--text-muted);" class="mb-6">Sports & Roster Management System</p>
+            <button class="btn-main w-full" onclick="loginWithGoogle()">Sign in with Google</button>
         </div>
     </div>
 
-    <!-- 2. NOT REGISTERED SCREEN -->
+    <!-- 2. UNREGISTERED GUARD SCREEN -->
     <div id="not-registered-page" class="page hidden">
-        <div class="hero-box border-bold text-center p-8">
-            <h2 class="text-3xl font-black mb-4 text-red-500">ACCOUNT NOT REGISTERED</h2>
-            <p class="mb-6 font-bold">Hindi ka pa nakakapag-register sa system. Kailangan mo munang kumpletuhin ang iyong player profile bago makapag-set ng laro.</p>
-            <div class="flex gap-4">
-                <button class="btn-main" onclick="window.navigateTo('signup-page')">REGISTER NOW</button>
-                <button class="btn-outline !border-red-600" onclick="logout()">LOGOUT</button>
+        <div class="hero-box max-w-md mx-auto">
+            <h2 style="font-size: 1.5rem; font-weight: 700;" class="mb-2">Registration Required</h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem;" class="mb-6">
+                Your Google account is recognized, but you haven't set up a player profile yet.
+            </p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button class="btn-main" onclick="window.navigateTo('signup-page')">Complete Profile</button>
+                <button class="btn-outline" onclick="logout()">Sign Out</button>
             </div>
         </div>
     </div>
 
-    <!-- 3. SIGN UP FORM -->
+    <!-- 3. FORMAL REGISTRATION FORM -->
     <div id="signup-page" class="page hidden">
-        <div class="container border-bold p-10 max-w-lg mx-auto">
-            <h2 class="section-title mb-6">PLAYER REGISTRATION</h2>
+        <div class="card max-w-md mx-auto">
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 4px;">Player Profile Setup</h2>
+            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 20px;">Please enter your physical specs and position.</p>
+            
             <form onsubmit="handleSignup(event)">
-                <input type="text" id="reg-h" placeholder="HEIGHT (CM)" required>
-                <input type="text" id="reg-w" placeholder="WEIGHT (KG)" required>
-                <input type="number" id="reg-a" placeholder="AGE" required>
+                <label style="font-size: 0.8rem; color: var(--text-muted);">Height (cm)</label>
+                <input type="text" id="reg-h" placeholder="e.g. 178" required>
+                
+                <label style="font-size: 0.8rem; color: var(--text-muted);">Weight (kg)</label>
+                <input type="text" id="reg-w" placeholder="e.g. 72" required>
+                
+                <label style="font-size: 0.8rem; color: var(--text-muted);">Age</label>
+                <input type="number" id="reg-a" placeholder="e.g. 24" required>
+                
+                <label style="font-size: 0.8rem; color: var(--text-muted);">Primary Position</label>
                 <select id="reg-p" required>
-                    <option value="">POSITION SA LARO</option>
-                    <option>POINT GUARD (PG)</option>
-                    <option>SHOOTING GUARD (SG)</option>
-                    <option>SMALL FORWARD (SF)</option>
-                    <option>POWER FORWARD (PF)</option>
-                    <option>CENTER (C)</option>
+                    <option value="">Select Position...</option>
+                    <option>Point Guard (PG)</option>
+                    <option>Shooting Guard (SG)</option>
+                    <option>Small Forward (SF)</option>
+                    <option>Power Forward (PF)</option>
+                    <option>Center (C)</option>
                 </select>
-                <button type="submit" class="btn-main w-full mt-4">COMPLETE REGISTRATION</button>
+                
+                <button type="submit" class="btn-main w-full" style="margin-top: 12px;">Save & Proceed</button>
             </form>
         </div>
     </div>
 
-    <!-- 4. PLAYER DASHBOARD -->
+    <!-- 4. FORMAL DASHBOARD -->
     <div id="dashboard-page" class="page hidden">
-        <nav class="navbar border-b-4 border-white mb-6 pb-4 flex justify-between items-center">
-            <h2 class="text-3xl font-black italic">DASHBOARD</h2>
-            <div class="flex gap-2">
-                <button id="admin-nav-btn" class="btn-outline hidden" onclick="window.navigateTo('admin-page')">ADMIN PANEL</button>
-                <button class="btn-outline !border-red-600" onclick="logout()">LOGOUT</button>
+        <nav class="navbar">
+            <div>
+                <h2 style="font-size: 1.25rem; font-weight: 700;">Dashboard</h2>
+                <p style="font-size: 0.8rem; color: var(--text-muted);">Upcoming Session & Status</p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button id="admin-nav-btn" class="btn-outline hidden" onclick="window.navigateTo('admin-page')">Admin Portal</button>
+                <button class="btn-outline" style="border-color: rgba(220, 38, 38, 0.4); color: #f87171;" onclick="logout()">Sign Out</button>
             </div>
         </nav>
 
         <div class="grid-2">
-            <!-- Game Schedule -->
-            <div class="card border-bold">
-                <h3 class="tag">GAME SCHEDULE</h3>
-                <p id="view-date" class="text-2xl font-black mt-4">DATE: ---</p>
-                <p id="view-time" class="text-2xl font-black">TIME: ---</p>
-                <p id="view-venue" class="text-2xl font-black">VENUE: ---</p>
+            <!-- Schedule Card -->
+            <div class="card">
+                <span class="tag">Next Game Details</span>
                 
-                <div class="flex gap-4 mt-6">
-                    <button class="btn-main flex-1" onclick="setStatus('in')">PLAY (I'M IN)</button>
-                    <button class="btn-outline flex-1" onclick="setStatus('out')">NOT PLAY (OUT)</button>
+                <div style="margin-top: 20px;">
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">DATE</p>
+                    <p id="view-date" style="font-size: 1.1rem; font-weight: 600; margin-bottom: 12px;">Loading...</p>
+
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">TIME</p>
+                    <p id="view-time" style="font-size: 1.1rem; font-weight: 600; margin-bottom: 12px;">Loading...</p>
+
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">VENUE</p>
+                    <p id="view-venue" style="font-size: 1.1rem; font-weight: 600;">Loading...</p>
                 </div>
-                <input type="text" placeholder="INCLUDE OTHER PLAYERS (NAME1, NAME2)" class="mt-4">
+                
+                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button class="btn-main" style="flex: 1;" onclick="setStatus('in')">I'm Attending</button>
+                    <button class="btn-outline" style="flex: 1;" onclick="setStatus('out')">Not Available</button>
+                </div>
             </div>
 
-            <!-- Announcements -->
-            <div class="card bg-white text-black">
-                <h3 class="tag !bg-black !text-white">ANNOUNCEMENT</h3>
-                <p id="view-announcement" class="text-lg font-bold mt-4">Loading announcement...</p>
+            <!-- Announcement Card -->
+            <div class="card bg-white">
+                <span class="tag" style="background-color: #0f172a; color: #ffffff;">Notice Board</span>
+                <p id="view-announcement" style="margin-top: 20px; font-size: 0.95rem; line-height: 1.5; color: #334155;">
+                    Loading announcements...
+                </p>
             </div>
         </div>
 
         <!-- Poster Download Section -->
-        <div class="mt-10 text-center border-t-2 border-white pt-8">
-            <p class="font-black mb-2">DOWNLOAD GAME POSTER</p>
-            <div class="poster-placeholder">ADMIN POSTER</div>
-            <button class="btn-main mt-4">DOWNLOAD JPG</button>
+        <div class="card" style="margin-top: 20px; text-align: center;">
+            <p style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">OFFICIAL EVENT MEDIA</p>
+            <div class="poster-placeholder">Official Poster Media Preview</div>
+            <button class="btn-outline" style="margin-top: 16px;">Download Event Flyer</button>
         </div>
     </div>
 
-    <!-- 5. ADMIN / SUPER ADMIN PANEL -->
+    <!-- 5. FORMAL ADMIN PANEL -->
     <div id="admin-page" class="page hidden">
-        <div class="flex justify-between items-center mb-6">
-            <h1 id="admin-role-title" class="text-red-600 text-3xl">ADMIN PANEL</h1>
-            <span id="super-admin-badge" class="bg-red-600 text-white font-black px-4 py-1 hidden">SUPER ADMIN ACCESS</span>
-        </div>
-
-        <div class="grid-2">
-            <!-- Schedule Manager -->
-            <div class="card border-red">
-                <h3 class="tag bg-red">SET GAME DETAILS</h3>
-                <form onsubmit="updateGame(event)">
-                    <input type="text" id="set-date" placeholder="DATE">
-                    <input type="text" id="set-time" placeholder="TIME">
-                    <input type="text" id="set-venue" placeholder="VENUE">
-                    <textarea id="set-msg" placeholder="TYPE ANNOUNCEMENT..."></textarea>
-                    <button class="btn-main w-full !bg-red-600 !text-white">UPDATE DASHBOARD</button>
-                </form>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <div>
+                <h1 style="font-size: 1.5rem; font-weight: 700;">Admin Management Console</h1>
+                <p style="font-size: 0.85rem; color: var(--text-muted);">Configure game details and update player announcements.</p>
             </div>
+            <span id="super-admin-badge" class="tag hidden" style="background-color: var(--accent-red);">Super Admin</span>
         </div>
 
-        <button class="mt-8 underline cursor-pointer" onclick="window.navigateTo('dashboard-page')">BACK TO DASHBOARD</button>
+        <div class="card max-w-lg">
+            <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 16px;">Update Game Session</h3>
+            <form onsubmit="updateGame(event)">
+                <label style="font-size: 0.8rem; color: var(--text-muted);">Game Date</label>
+                <input type="text" id="set-date" placeholder="e.g. October 15, 2026">
+
+                <label style="font-size: 0.8rem; color: var(--text-muted);">Game Time</label>
+                <input type="text" id="set-time" placeholder="e.g. 7:00 PM - 9:00 PM">
+
+                <label style="font-size: 0.8rem; color: var(--text-muted);">Venue / Court Location</label>
+                <input type="text" id="set-venue" placeholder="e.g. Araneta Coliseum">
+
+                <label style="font-size: 0.8rem; color: var(--text-muted);">Announcement / Instructions</label>
+                <textarea id="set-msg" rows="4" placeholder="Type notice for players..."></textarea>
+
+                <button type="submit" class="btn-main w-full" style="background-color: var(--accent-blue);">Publish Updates</button>
+            </form>
+        </div>
+
+        <button class="btn-outline" style="margin-top: 24px;" onclick="window.navigateTo('dashboard-page')">← Return to Dashboard</button>
     </div>
 
-    <script src="script.js"></script>
 </body>
 </html>
