@@ -3,24 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BALLER SYSTEM | FIREBASE B&W</title>
+    <title>BALLER SYSTEM | B&W</title>
     <link rel="stylesheet" href="style.css">
     
+    <!-- Firebase SDKs (Web Modular) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // TODO: PALITAN ITO NG IYONG FIREBASE CONFIG GALING SA FIREBASE CONSOLE
+        // Ang iyong totoong Firebase Configuration
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT.appspot.com",
-            messagingSenderId: "YOUR_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyCPoQ-8anpEqtozvXlJCoaxl3hOv4E5uIg",
+            authDomain: "ballerapp-61517.firebaseapp.com",
+            projectId: "ballerapp-61517",
+            storageBucket: "ballerapp-61517.firebasestorage.app",
+            messagingSenderId: "653164120828",
+            appId: "1:653164120828:web:a1b24c6082b14adbfb6579"
         };
 
+        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -28,15 +30,19 @@
 
         const ADMIN_EMAIL = "jayvannep@gmail.com";
 
-        // --- AUTH LOGIC ---
+        // --- AUTHENTICATION LOGIC ---
         window.login = async () => {
-            const result = await signInWithPopup(auth, provider);
-            checkUser(result.user);
+            try {
+                const result = await signInWithPopup(auth, provider);
+                checkUserStatus(result.user);
+            } catch (error) {
+                alert("Login Error: " + error.message);
+            }
         };
 
         window.logout = () => signOut(auth).then(() => location.reload());
 
-        function checkUser(user) {
+        function checkUserStatus(user) {
             onSnapshot(doc(db, "users", user.uid), (snap) => {
                 if (snap.exists()) {
                     window.navigateTo('dashboard-page');
@@ -46,10 +52,25 @@
             });
         }
 
+        // Auth state listener
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                checkUserStatus(user);
+                if (user.email === ADMIN_EMAIL) {
+                    document.getElementById('admin-btn').classList.remove('hidden');
+                    document.getElementById('admin-email-display').innerText = user.email;
+                }
+            } else {
+                window.navigateTo('login-page');
+            }
+        });
+
         // --- PLAYER REGISTRATION ---
         window.handleSignup = async (e) => {
             e.preventDefault();
             const user = auth.currentUser;
+            if (!user) return;
+
             const userData = {
                 uid: user.uid,
                 name: user.displayName,
@@ -61,14 +82,15 @@
                 status: 'out',
                 isBanned: false
             };
+
             await setDoc(doc(db, "users", user.uid), userData);
             window.navigateTo('dashboard-page');
         };
 
-        // --- REAL-TIME UPDATES (GAME INFO) ---
-        onSnapshot(doc(db, "settings", "game_info"), (doc) => {
-            if (doc.exists()) {
-                const data = doc.data();
+        // --- REAL-TIME GAME INFO SYNC ---
+        onSnapshot(doc(db, "settings", "game_info"), (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
                 document.getElementById('view-date').innerText = "DATE: " + (data.date || 'TBA');
                 document.getElementById('view-time').innerText = "TIME: " + (data.time || 'TBA');
                 document.getElementById('view-venue').innerText = "VENUE: " + (data.venue || 'TBA');
@@ -76,7 +98,14 @@
             }
         });
 
-        // --- ADMIN UPDATE ---
+        // --- PLAYER ATTENDANCE ---
+        window.setStatus = async (status) => {
+            if (!auth.currentUser) return;
+            await updateDoc(doc(db, "users", auth.currentUser.uid), { status });
+            alert("ATTENDANCE UPDATED: " + status.toUpperCase());
+        };
+
+        // --- ADMIN CONTROLS ---
         window.updateGame = async (e) => {
             e.preventDefault();
             await setDoc(doc(db, "settings", "game_info"), {
@@ -85,26 +114,13 @@
                 venue: document.getElementById('set-venue').value,
                 announcement: document.getElementById('set-msg').value
             });
-            alert("GAME UPDATED!");
+            alert("GAME UPDATED IN DATABASE!");
         };
-
-        // --- STATUS UPDATE ---
-        window.setStatus = async (status) => {
-            await updateDoc(doc(db, "users", auth.currentUser.uid), { status });
-            alert("Status Updated: " + status.toUpperCase());
-        };
-
-        // Admin check for UI
-        onAuthStateChanged(auth, (user) => {
-            if (user && user.email === ADMIN_EMAIL) {
-                document.getElementById('admin-btn').classList.remove('hidden');
-            }
-        });
-
     </script>
 </head>
 <body>
 
+    <!-- 1. LOGIN SECTION -->
     <div id="login-page" class="page">
         <div class="hero-box">
             <h1 class="logo-text">BALLER<span>APP</span></h1>
@@ -112,6 +128,7 @@
         </div>
     </div>
 
+    <!-- 2. SIGN UP SECTION -->
     <div id="signup-page" class="page hidden">
         <div class="container border-bold p-10">
             <h2 class="section-title">PLAYER REGISTRATION</h2>
@@ -120,60 +137,76 @@
                 <input type="text" id="reg-w" placeholder="WEIGHT (KG)" required>
                 <input type="number" id="reg-a" placeholder="AGE" required>
                 <select id="reg-p" required>
-                    <option value="">POSITION</option>
-                    <option>GUARD</option>
-                    <option>FORWARD</option>
-                    <option>CENTER</option>
+                    <option value="">POSITION SA LARO</option>
+                    <option>POINT GUARD (PG)</option>
+                    <option>SHOOTING GUARD (SG)</option>
+                    <option>SMALL FORWARD (SF)</option>
+                    <option>POWER FORWARD (PF)</option>
+                    <option>CENTER (C)</option>
                 </select>
                 <button type="submit" class="btn-main w-full mt-4">SAVE PROFILE</button>
             </form>
         </div>
     </div>
 
+    <!-- 3. PLAYER DASHBOARD -->
     <div id="dashboard-page" class="page hidden">
         <nav class="navbar border-b-4 border-white mb-6 pb-4 flex justify-between">
             <h2 class="text-3xl font-black italic">DASHBOARD</h2>
             <div class="flex gap-2">
-                <button id="admin-btn" class="btn-outline hidden" onclick="window.navigateTo('admin-page')">ADMIN</button>
+                <button id="admin-btn" class="btn-outline hidden" onclick="window.navigateTo('admin-page')">ADMIN PANEL</button>
                 <button class="btn-outline !border-red-600" onclick="logout()">LOGOUT</button>
             </div>
         </nav>
 
         <div class="grid-2">
+            <!-- Game Schedule -->
             <div class="card border-bold">
                 <h3 class="tag">GAME SCHEDULE</h3>
-                <p id="view-date" class="text-2xl font-black mt-4">DATE: ---</p>
-                <p id="view-time" class="text-2xl font-black">TIME: ---</p>
-                <p id="view-venue" class="text-2xl font-black">VENUE: ---</p>
+                <p id="view-date" class="text-2xl font-black mt-4">DATE: LOADING...</p>
+                <p id="view-time" class="text-2xl font-black">TIME: LOADING...</p>
+                <p id="view-venue" class="text-2xl font-black">VENUE: LOADING...</p>
                 
                 <div class="flex gap-4 mt-6">
                     <button class="btn-main flex-1" onclick="setStatus('in')">I'M IN</button>
                     <button class="btn-outline flex-1" onclick="setStatus('out')">OUT</button>
                 </div>
+                <input type="text" placeholder="INCLUDE OTHER PLAYERS (NAMES)" class="mt-4">
             </div>
 
+            <!-- Announcements -->
             <div class="card bg-white text-black">
                 <h3 class="tag !bg-black !text-white">ANNOUNCEMENT</h3>
-                <p id="view-announcement" class="text-lg font-bold mt-4">Loading...</p>
+                <p id="view-announcement" class="text-lg font-bold mt-4">Loading announcement...</p>
             </div>
+        </div>
+
+        <!-- Media Download Section -->
+        <div class="mt-10 text-center border-t-2 border-white pt-8">
+            <p class="font-black mb-2">DOWNLOAD GAME POSTER</p>
+            <div class="poster-placeholder">ADMIN PHOTO HERE</div>
+            <button class="btn-main mt-4">DOWNLOAD JPG</button>
         </div>
     </div>
 
+    <!-- 4. ADMIN PANEL -->
     <div id="admin-page" class="page hidden">
-        <h1 class="text-red-600 text-4xl mb-6">ADMIN CONTROL: jayvannep@gmail.com</h1>
+        <h1 class="text-red-600 text-3xl mb-2">ADMIN CONTROL PANEL</h1>
+        <p class="mb-6 text-sm">LOGGED IN AS: <span id="admin-email-display" class="font-bold underline"></span></p>
+
         <div class="grid-2">
             <div class="card border-red">
-                <h3 class="tag bg-red">SET SCHEDULE</h3>
+                <h3 class="tag bg-red">SET GAME DETAILS</h3>
                 <form onsubmit="updateGame(event)">
-                    <input type="text" id="set-date" placeholder="DATE">
-                    <input type="text" id="set-time" placeholder="TIME">
+                    <input type="text" id="set-date" placeholder="DATE (E.G., MARCH 30, 2026)">
+                    <input type="text" id="set-time" placeholder="TIME (E.G., 6:00 PM)">
                     <input type="text" id="set-venue" placeholder="VENUE">
-                    <textarea id="set-msg" placeholder="ANNOUNCEMENT"></textarea>
-                    <button class="btn-main w-full !bg-red-600 !text-white">UPDATE SYSTEM</button>
+                    <textarea id="set-msg" placeholder="TYPE ANNOUNCEMENT HERE..."></textarea>
+                    <button class="btn-main w-full !bg-red-600 !text-white">UPDATE DASHBOARD</button>
                 </form>
             </div>
         </div>
-        <button class="mt-10 underline" onclick="window.navigateTo('dashboard-page')">BACK TO DASHBOARD</button>
+        <button class="mt-8 underline cursor-pointer" onclick="window.navigateTo('dashboard-page')">BACK TO DASHBOARD</button>
     </div>
 
     <script src="script.js"></script>
