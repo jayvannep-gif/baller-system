@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BALLER APP | Management Portal</title>
+    <title>BASKETBALL CLUB SYSTEM</title>
     
-    <!-- Google Fonts (Inter) -->
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -16,7 +16,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, getDocs, collection, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCPoQ-8anpEqtozvXlJCoaxl3hOv4E5uIg",
@@ -30,71 +31,82 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const storage = getStorage(app);
         const provider = new GoogleAuthProvider();
 
         const SUPER_ADMIN_EMAIL = "jayvannep@gmail.com";
+        let currentUserData = null;
 
-        // Navigation Helper
+        // --- NAVIGATION ---
         window.navigateTo = (pageId) => {
-            document.querySelectorAll('.page').forEach(page => page.classList.add('hidden'));
+            document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
             const target = document.getElementById(pageId);
             if (target) target.classList.remove('hidden');
         };
 
-        // Login Logic
+        // --- AUTHENTICATION ---
         window.loginWithGoogle = async () => {
             try {
                 const result = await signInWithPopup(auth, provider);
-                checkUserRegistration(result.user);
-            } catch (error) {
-                alert("Login Error: " + error.message);
+                checkUserStatus(result.user);
+            } catch (err) {
+                alert("Login Failed: " + err.message);
             }
         };
 
         window.logout = () => signOut(auth).then(() => location.reload());
 
-        async function checkUserRegistration(user) {
+        async function checkUserStatus(user) {
             const userRef = doc(db, "users", user.uid);
             const userSnap = await getDoc(userRef);
 
             if (userSnap.exists()) {
-                const userData = userSnap.data();
-                if (userData.isBanned) {
-                    alert("Your account is currently restricted.");
+                currentUserData = userSnap.data();
+                if (currentUserData.isBanned) {
+                    alert("ACCOUNT BLOCKED: " + (currentUserData.banReason || "Violated club rules."));
                     logout();
                     return;
                 }
+                if (!currentUserData.isApproved && user.email !== SUPER_ADMIN_EMAIL) {
+                    window.navigateTo('pending-approval-page');
+                    return;
+                }
                 window.navigateTo('dashboard-page');
-                checkRole(user.email);
+                checkRoles(user.email);
             } else {
-                window.navigateTo('not-registered-page');
+                window.navigateTo('signup-page');
             }
         }
 
-        async function checkRole(email) {
-            const adminBtn = document.getElementById('admin-nav-btn');
-            const superBadge = document.getElementById('super-admin-badge');
+        async function checkRoles(email) {
+            const adminNavBtn = document.getElementById('admin-nav-btn');
+            const superAdminSection = document.getElementById('super-admin-section');
             
+            let isAdmin = false;
             if (email === SUPER_ADMIN_EMAIL) {
-                if (adminBtn) adminBtn.classList.remove('hidden');
-                if (superBadge) superBadge.classList.remove('hidden');
+                isAdmin = true;
+                if (superAdminSection) superAdminSection.classList.remove('hidden');
             } else {
                 const adminSnap = await getDoc(doc(db, "admins", email));
-                if (adminSnap.exists() && adminBtn) {
-                    adminBtn.classList.remove('hidden');
-                }
+                if (adminSnap.exists()) isAdmin = true;
+            }
+
+            if (isAdmin && adminNavBtn) {
+                adminNavBtn.classList.remove('hidden');
+                loadAdminData();
             }
         }
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                checkUserRegistration(user);
+                checkUserStatus(user);
             } else {
                 window.navigateTo('login-page');
             }
+            loadPersistentData();
         });
 
-        // Registration Logic
+        // --- REGISTRATION ---
         window.handleSignup = async (e) => {
             e.preventDefault();
             const user = auth.currentUser;
@@ -102,41 +114,154 @@
 
             const userData = {
                 uid: user.uid,
-                name: user.displayName,
+                name: user.displayName || document.getElementById('reg-name').value,
                 email: user.email,
                 height: document.getElementById('reg-h').value,
-                weight: document.getElementById('reg-w').value,
-                age: document.getElementById('reg-a').value,
                 position: document.getElementById('reg-p').value,
                 status: 'out',
+                guests: [],
+                isApproved: user.email === SUPER_ADMIN_EMAIL, // Super Admin auto-approved
                 isBanned: false,
+                warning: "",
                 createdAt: new Date().toISOString()
             };
 
             await setDoc(doc(db, "users", user.uid), userData);
-            alert("Registration Complete!");
-            window.navigateTo('dashboard-page');
+            alert(user.email === SUPER_ADMIN_EMAIL ? "Registration successful!" : "Registration submitted! Wait for Admin approval.");
+            checkUserStatus(user);
         };
 
-        // Data Sync
-        onSnapshot(doc(db, "settings", "game_info"), (docSnap) => {
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                document.getElementById('view-date').innerText = data.date || 'TBA';
-                document.getElementById('view-time').innerText = data.time || 'TBA';
-                document.getElementById('view-venue').innerText = data.venue || 'TBA';
-                document.getElementById('view-announcement').innerText = data.announcement || 'No active announcements.';
+        // --- REALTIME DATA LISTENERS (Persistent Schedule, Notices, Photos, Matchmaking) ---
+        function loadPersistentData() {
+            // Schedule & Notice
+            onSnapshot(doc(db, "settings", "game_info"), (docSnap) => {
+                if (docSnap.exists()) {
+                    const d = docSnap.data();
+                    document.getElementById('view-date').innerText = d.date || 'TBA';
+                    document.getElementById('view-time').innerText = d.time || 'TBA';
+                    document.getElementById('view-venue').innerText = d.venue || 'TBA';
+                    document.getElementById('view-announcement').innerText = d.announcement || 'No announcements.';
+                }
+            });
+
+            // Photos Gallery
+            onSnapshot(collection(db, "photos"), (snapshot) => {
+                const gallery = document.getElementById('photo-gallery');
+                gallery.innerHTML = "";
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const img = document.createElement('img');
+                    img.src = data.url;
+                    img.style.cssText = "width: 100%; height: 140px; object-fit: cover; border-radius: 8px;";
+                    gallery.appendChild(img);
+                });
+            });
+
+            // Player Roster & Auto Matchmaking Engine
+            onSnapshot(collection(db, "users"), (snapshot) => {
+                let attendingPool = [];
+                let allUsers = [];
+
+                snapshot.forEach(docSnap => {
+                    const u = docSnap.data();
+                    allUsers.push(u);
+                    if (u.status === 'in' && u.isApproved && !u.isBanned) {
+                        attendingPool.push({ name: u.name, position: u.position, isMain: true });
+                        if (u.guests && u.guests.length > 0) {
+                            u.guests.forEach(gName => {
+                                attendingPool.push({ name: `${gName} (${u.name}'s Guest)`, position: 'GUEST', isMain: false });
+                            });
+                        }
+                    }
+                });
+
+                renderRosterAndMatchmaking(attendingPool);
+                renderAdminUserManagement(allUsers);
+            });
+        }
+
+        // --- AUTO-MATCHMAKING ENGINE (10 players/game, 5v5, Rotation: Game 1 -> Rest Game 2 -> Play Game 3) ---
+        function renderRosterAndMatchmaking(pool) {
+            const rosterList = document.getElementById('active-roster-list');
+            rosterList.innerHTML = pool.map(p => `<li><strong>${p.name}</strong> - <span style="color:var(--text-muted);">${p.position}</span></li>`).join('');
+
+            const matchesContainer = document.getElementById('generated-matches');
+            matchesContainer.innerHTML = "";
+
+            if (pool.length < 10) {
+                matchesContainer.innerHTML = `<p style="color:var(--text-muted);">Kulang pa sa players. Need at least 10 players to generate 5v5 games. (Current: ${pool.length})</p>`;
+                return;
             }
-        });
 
-        window.setStatus = async (status) => {
-            const user = auth.currentUser;
-            if (!user) return;
-            await updateDoc(doc(db, "users", user.uid), { status });
-            alert("Attendance updated successfully!");
+            // Calculate Games
+            let gameNumber = 1;
+            let currentPool = [...pool];
+            let startTimeStr = document.getElementById('view-time').innerText;
+            let baseMinutes = 18 * 60; // Default 6:00 PM if parsing fails
+
+            if (startTimeStr.includes("7")) baseMinutes = 19 * 60; // 7:00 PM
+
+            while (currentPool.length >= 10) {
+                let game10 = currentPool.slice(0, 10);
+                let teamA = game10.slice(0, 5);
+                let teamB = game10.slice(5, 10);
+
+                let matchStartMins = baseMinutes + (gameNumber - 1) * 45;
+                let startHH = Math.floor(matchStartMins / 60);
+                let startMM = matchStartMins % 60;
+                let timeFormatted = `${startHH % 12 || 12}:${startMM < 10 ? '0' : ''}${startMM} ${startHH >= 12 ? 'PM' : 'AM'}`;
+
+                let card = document.createElement('div');
+                card.className = "card";
+                card.style.marginBottom = "16px";
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                        <span class="tag">GAME ${gameNumber}</span>
+                        <span style="font-weight:700; color:var(--accent-blue);">Est. Time: ${timeFormatted} (45 Mins)</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                        <div>
+                            <p style="font-weight:700; border-bottom:1px solid #334155; padding-bottom:4px;">TEAM A</p>
+                            <ul style="font-size:0.85rem; padding-left:16px;">${teamA.map(p => `<li>${p.name}</li>`).join('')}</ul>
+                        </div>
+                        <div>
+                            <p style="font-weight:700; border-bottom:1px solid #334155; padding-bottom:4px;">TEAM B</p>
+                            <ul style="font-size:0.85rem; padding-left:16px;">${teamB.map(p => `<li>${p.name}</li>`).join('')}</ul>
+                        </div>
+                    </div>
+                `;
+                matchesContainer.appendChild(card);
+
+                // Rotation Rule: Game 1 players rest in Game 2, return in Game 3
+                currentPool = currentPool.slice(10).concat(game10);
+                gameNumber++;
+                if (gameNumber > 4) break; // Limit preview to 4 games max per session
+            }
+        }
+
+        // --- PLAYER ACTIONS ---
+        window.setAttendance = async (status) => {
+            const u = auth.currentUser;
+            if (!u) return;
+
+            let guests = [];
+            if (status === 'in') {
+                const guestInput = document.getElementById('guest-names-input').value.trim();
+                if (guestInput) {
+                    guests = guestInput.split(',').map(s => s.trim()).filter(s => s.length > 0);
+                    if (guests.length > 4) {
+                        alert("Hanggang 4 na kasama lang ang pwedeng idagdag (Total 5 kasama ka).");
+                        return;
+                    }
+                }
+            }
+
+            await updateDoc(doc(db, "users", u.uid), { status, guests });
+            alert(status === 'in' ? "Naka-set ka na sa laro!" : "Na-cancel ang paglaro mo.");
         };
 
-        window.updateGame = async (e) => {
+        // --- ADMIN & SUPER ADMIN FUNCTIONS ---
+        window.updateScheduleAndNotice = async (e) => {
             e.preventDefault();
             await setDoc(doc(db, "settings", "game_info"), {
                 date: document.getElementById('set-date').value,
@@ -144,50 +269,126 @@
                 venue: document.getElementById('set-venue').value,
                 announcement: document.getElementById('set-msg').value
             });
-            alert("Schedule updated!");
+            alert("Game Schedule & Notice Board Updated!");
+        };
+
+        window.uploadGamePhoto = async () => {
+            const file = document.getElementById('photo-input').files[0];
+            if (!file) return alert("Pumili muna ng larawan.");
+
+            const storageRef = ref(storage, `game_photos/${Date.now()}_${file.name}`);
+            await uploadBytes(storageRef, file);
+            const url = await getDownloadURL(storageRef);
+
+            await setDoc(doc(db, "photos", `${Date.now()}`), { url, createdAt: new Date().toISOString() });
+            alert("Photo uploaded successfully!");
+        };
+
+        function renderAdminUserManagement(users) {
+            const container = document.getElementById('admin-user-list');
+            if (!container) return;
+            container.innerHTML = "";
+
+            users.forEach(u => {
+                if (u.email === SUPER_ADMIN_EMAIL) return; // Skip Super Admin in list
+                
+                let card = document.createElement('div');
+                card.style.cssText = "background:#0f172a; padding:12px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;";
+                card.innerHTML = `
+                    <div>
+                        <p style="font-weight:700;">${u.name} <span style="font-size:0.75rem; color:var(--text-muted);">(${u.email})</span></p>
+                        <p style="font-size:0.8rem; color:var(--text-muted);">Pos: ${u.position} | Ht: ${u.height}cm | Approved: ${u.isApproved ? 'YES' : 'NO'} | Banned: ${u.isBanned ? 'YES' : 'NO'}</p>
+                        ${u.warning ? `<p style="font-size:0.75rem; color:#f87171;">Warning: ${u.warning}</p>` : ''}
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        ${!u.isApproved ? `<button class="btn-main" style="padding:4px 8px; font-size:0.75rem;" onclick="approveUser('${u.uid}')">Approve</button>` : ''}
+                        <button class="btn-outline" style="padding:4px 8px; font-size:0.75rem;" onclick="warnUser('${u.uid}')">Warn</button>
+                        <button class="btn-outline" style="padding:4px 8px; font-size:0.75rem; border-color:#f87171; color:#f87171;" onclick="toggleBan('${u.uid}', ${!u.isBanned})">${u.isBanned ? 'Unblock' : 'Block'}</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        window.approveUser = async (uid) => {
+            await updateDoc(doc(db, "users", uid), { isApproved: true });
+            alert("User approved!");
+        };
+
+        window.warnUser = async (uid) => {
+            const reason = prompt("Enter warning message (e.g. Kulang sa bayad, Nanakit):");
+            if (reason) await updateDoc(doc(db, "users", uid), { warning: reason });
+        };
+
+        window.toggleBan = async (uid, shouldBan) => {
+            let reason = "";
+            if (shouldBan) reason = prompt("Reason for Blocking:") || "Rule violation";
+            await updateDoc(doc(db, "users", uid), { isBanned: shouldBan, banReason: reason });
+            alert(shouldBan ? "User blocked." : "User unblocked.");
+        };
+
+        // --- SUPER ADMIN ONLY: ADD/REMOVE ADMINS ---
+        window.addAdmin = async () => {
+            const email = document.getElementById('new-admin-email').value.trim();
+            if (!email) return;
+            await setDoc(doc(db, "admins", email), { addedAt: new Date().toISOString() });
+            alert(`${email} is now an Admin!`);
+        };
+
+        async function loadAdminData() {
+            if (auth.currentUser && auth.currentUser.email === SUPER_ADMIN_EMAIL) {
+                const snap = await getDocs(collection(db, "admins"));
+                const list = document.getElementById('admin-list-display');
+                if (list) {
+                    list.innerHTML = "";
+                    snap.forEach(d => {
+                        list.innerHTML += `<li>${d.id} <button onclick="removeAdmin('${d.id}')" style="color:#f87171; border:none; background:none; cursor:pointer;">[Remove]</button></li>`;
+                    });
+                }
+            }
+        }
+
+        window.removeAdmin = async (email) => {
+            await deleteDoc(doc(db, "admins", email));
+            alert("Admin removed.");
+            loadAdminData();
         };
     </script>
 </head>
 <body>
 
-    <!-- 1. FORMAL LOGIN CONTAINER -->
+    <!-- 1. LOGIN PAGE -->
     <div id="login-page" class="page">
         <div class="hero-box max-w-md mx-auto">
-            <h1 class="logo-text">BALLER<span>APP</span></h1>
-            <p style="color: var(--text-muted);" class="mb-6">Sports & Roster Management System</p>
+            <h1 class="logo-text">BASKETBALL<span>CLUB</span></h1>
+            <p style="color: var(--text-muted);" class="mb-6">Tuesday Night League Portal (6PM - 10PM)</p>
             <button class="btn-main w-full" onclick="loginWithGoogle()">Sign in with Google</button>
         </div>
     </div>
 
-    <!-- 2. UNREGISTERED GUARD SCREEN -->
-    <div id="not-registered-page" class="page hidden">
+    <!-- 2. PENDING APPROVAL GUARD -->
+    <div id="pending-approval-page" class="page hidden">
         <div class="hero-box max-w-md mx-auto">
-            <h2 style="font-size: 1.5rem; font-weight: 700;" class="mb-2">Registration Required</h2>
+            <h2 style="font-size: 1.5rem; font-weight: 700; color: #facc15;" class="mb-2">Pending Admin Approval</h2>
             <p style="color: var(--text-muted); font-size: 0.9rem;" class="mb-6">
-                Your Google account is recognized, but you haven't set up a player profile yet.
+                Naka-register ka na! Maghintay lamang sa pahintulot ng Admin o Super Admin bago ka makasali sa laro.
             </p>
-            <div style="display: flex; gap: 12px; justify-content: center;">
-                <button class="btn-main" onclick="window.navigateTo('signup-page')">Complete Profile</button>
-                <button class="btn-outline" onclick="logout()">Sign Out</button>
-            </div>
+            <button class="btn-outline" onclick="logout()">Sign Out</button>
         </div>
     </div>
 
-    <!-- 3. FORMAL REGISTRATION FORM -->
+    <!-- 3. SIGNUP PAGE -->
     <div id="signup-page" class="page hidden">
         <div class="card max-w-md mx-auto">
             <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 4px;">Player Profile Setup</h2>
-            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 20px;">Please enter your physical specs and position.</p>
+            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 20px;">Kumpletuhin ang impormasyon bago maglaro.</p>
             
             <form onsubmit="handleSignup(event)">
+                <label style="font-size: 0.8rem; color: var(--text-muted);">Full Name</label>
+                <input type="text" id="reg-name" placeholder="Juan Dela Cruz" required>
+
                 <label style="font-size: 0.8rem; color: var(--text-muted);">Height (cm)</label>
-                <input type="text" id="reg-h" placeholder="e.g. 178" required>
-                
-                <label style="font-size: 0.8rem; color: var(--text-muted);">Weight (kg)</label>
-                <input type="text" id="reg-w" placeholder="e.g. 72" required>
-                
-                <label style="font-size: 0.8rem; color: var(--text-muted);">Age</label>
-                <input type="number" id="reg-a" placeholder="e.g. 24" required>
+                <input type="text" id="reg-h" placeholder="e.g. 175" required>
                 
                 <label style="font-size: 0.8rem; color: var(--text-muted);">Primary Position</label>
                 <select id="reg-p" required>
@@ -199,93 +400,135 @@
                     <option>Center (C)</option>
                 </select>
                 
-                <button type="submit" class="btn-main w-full" style="margin-top: 12px;">Save & Proceed</button>
+                <button type="submit" class="btn-main w-full" style="margin-top: 12px;">Submit Profile</button>
             </form>
         </div>
     </div>
 
-    <!-- 4. FORMAL DASHBOARD -->
+    <!-- 4. MAIN PLAYER DASHBOARD -->
     <div id="dashboard-page" class="page hidden">
         <nav class="navbar">
             <div>
-                <h2 style="font-size: 1.25rem; font-weight: 700;">Dashboard</h2>
-                <p style="font-size: 0.8rem; color: var(--text-muted);">Upcoming Session & Status</p>
+                <h2 style="font-size: 1.25rem; font-weight: 700;">Tuesday Basketball Club</h2>
+                <p style="font-size: 0.8rem; color: var(--text-muted);">Automatic Matchmaking & Schedule</p>
             </div>
             <div style="display: flex; gap: 8px;">
-                <button id="admin-nav-btn" class="btn-outline hidden" onclick="window.navigateTo('admin-page')">Admin Portal</button>
+                <button id="admin-nav-btn" class="btn-outline hidden" onclick="window.navigateTo('admin-page')">Admin Panel</button>
                 <button class="btn-outline" style="border-color: rgba(220, 38, 38, 0.4); color: #f87171;" onclick="logout()">Sign Out</button>
             </div>
         </nav>
 
         <div class="grid-2">
-            <!-- Schedule Card -->
+            <!-- Game Details -->
             <div class="card">
-                <span class="tag">Next Game Details</span>
-                
-                <div style="margin-top: 20px;">
+                <span class="tag">NEXT GAME SCHEDULE</span>
+                <div style="margin-top: 16px;">
                     <p style="font-size: 0.8rem; color: var(--text-muted);">DATE</p>
-                    <p id="view-date" style="font-size: 1.1rem; font-weight: 600; margin-bottom: 12px;">Loading...</p>
+                    <p id="view-date" style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px;">Loading...</p>
 
                     <p style="font-size: 0.8rem; color: var(--text-muted);">TIME</p>
-                    <p id="view-time" style="font-size: 1.1rem; font-weight: 600; margin-bottom: 12px;">Loading...</p>
+                    <p id="view-time" style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px;">Loading...</p>
 
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">VENUE</p>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">COURT LOCATION</p>
                     <p id="view-venue" style="font-size: 1.1rem; font-weight: 600;">Loading...</p>
                 </div>
                 
-                <div style="display: flex; gap: 12px; margin-top: 24px;">
-                    <button class="btn-main" style="flex: 1;" onclick="setStatus('in')">I'm Attending</button>
-                    <button class="btn-outline" style="flex: 1;" onclick="setStatus('out')">Not Available</button>
+                <div style="margin-top:20px; border-t:1px solid #334155; padding-top:16px;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">MAY KASAMA KA? (Max 4 Guests, Comma Separated):</label>
+                    <input type="text" id="guest-names-input" placeholder="e.g. Pedro, Mark (Automatic Same Team)">
+
+                    <div style="display: flex; gap: 12px; margin-top: 8px;">
+                        <button class="btn-main" style="flex: 1;" onclick="setAttendance('in')">PLAY (LALARO AKO)</button>
+                        <button class="btn-outline" style="flex: 1; border-color:#f87171; color:#f87171;" onclick="setAttendance('out')">NO (CANCEL)</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Announcement Card -->
+            <!-- Notice Board -->
             <div class="card bg-white">
-                <span class="tag" style="background-color: #0f172a; color: #ffffff;">Notice Board</span>
-                <p id="view-announcement" style="margin-top: 20px; font-size: 0.95rem; line-height: 1.5; color: #334155;">
-                    Loading announcements...
+                <span class="tag" style="background-color: #0f172a; color: #ffffff;">NOTICE BOARD</span>
+                <p id="view-announcement" style="margin-top: 16px; font-size: 0.95rem; line-height: 1.5; color: #334155;">
+                    Loading notices...
                 </p>
             </div>
         </div>
 
-        <!-- Poster Download Section -->
-        <div class="card" style="margin-top: 20px; text-align: center;">
-            <p style="font-size: 0.85rem; font-weight: 600; color: var(--text-muted);">OFFICIAL EVENT MEDIA</p>
-            <div class="poster-placeholder">Official Poster Media Preview</div>
-            <button class="btn-outline" style="margin-top: 16px;">Download Event Flyer</button>
+        <!-- Auto Matchmaking Schedule -->
+        <div class="card" style="margin-top:20px;">
+            <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:12px;">AUTOMATIC MATCHMAKING & GAME ROTATION</h3>
+            <div id="generated-matches"></div>
+        </div>
+
+        <!-- Roster & Gallery -->
+        <div class="grid-2" style="margin-top:20px;">
+            <div class="card">
+                <h3 style="font-size:1rem; font-weight:700; margin-bottom:12px;">ATTENDING PLAYERS POOL</h3>
+                <ol id="active-roster-list" style="padding-left:20px; font-size:0.9rem; line-height:1.6;"></ol>
+            </div>
+
+            <div class="card">
+                <h3 style="font-size:1rem; font-weight:700; margin-bottom:12px;">GAME HIGHLIGHTS & PHOTOS</h3>
+                <div id="photo-gallery" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:10px;"></div>
+            </div>
         </div>
     </div>
 
-    <!-- 5. FORMAL ADMIN PANEL -->
+    <!-- 5. ADMIN & SUPER ADMIN PANEL -->
     <div id="admin-page" class="page hidden">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <div>
-                <h1 style="font-size: 1.5rem; font-weight: 700;">Admin Management Console</h1>
-                <p style="font-size: 0.85rem; color: var(--text-muted);">Configure game details and update player announcements.</p>
+                <h1 style="font-size: 1.5rem; font-weight: 700;">Admin Control Panel</h1>
+                <p style="font-size: 0.85rem; color: var(--text-muted);">Manage court, schedules, players, and photos.</p>
             </div>
-            <span id="super-admin-badge" class="tag hidden" style="background-color: var(--accent-red);">Super Admin</span>
+            <button class="btn-outline" onclick="window.navigateTo('dashboard-page')">← Dashboard</button>
         </div>
 
-        <div class="card max-w-lg">
-            <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 16px;">Update Game Session</h3>
-            <form onsubmit="updateGame(event)">
-                <label style="font-size: 0.8rem; color: var(--text-muted);">Game Date</label>
-                <input type="text" id="set-date" placeholder="e.g. October 15, 2026">
-
-                <label style="font-size: 0.8rem; color: var(--text-muted);">Game Time</label>
-                <input type="text" id="set-time" placeholder="e.g. 7:00 PM - 9:00 PM">
-
-                <label style="font-size: 0.8rem; color: var(--text-muted);">Venue / Court Location</label>
-                <input type="text" id="set-venue" placeholder="e.g. Araneta Coliseum">
-
-                <label style="font-size: 0.8rem; color: var(--text-muted);">Announcement / Instructions</label>
-                <textarea id="set-msg" rows="4" placeholder="Type notice for players..."></textarea>
-
-                <button type="submit" class="btn-main w-full" style="background-color: var(--accent-blue);">Publish Updates</button>
-            </form>
+        <!-- Super Admin Section -->
+        <div id="super-admin-section" class="card hidden mb-6" style="border-color:var(--accent-red);">
+            <span class="tag" style="background:var(--accent-red);">SUPER ADMIN CONTROLS</span>
+            <h3 style="font-size:1rem; font-weight:700; margin-top:10px;">Manage Club Admins</h3>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+                <input type="email" id="new-admin-email" placeholder="Enter user email to make Admin" style="margin:0;">
+                <button class="btn-main" onclick="addAdmin()">Add Admin</button>
+            </div>
+            <ul id="admin-list-display" style="margin-top:12px; font-size:0.85rem; padding-left:20px;"></ul>
         </div>
 
-        <button class="btn-outline" style="margin-top: 24px;" onclick="window.navigateTo('dashboard-page')">← Return to Dashboard</button>
+        <div class="grid-2">
+            <!-- Schedule Setter -->
+            <div class="card">
+                <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 12px;">Set Game Schedule & Venue</h3>
+                <form onsubmit="updateScheduleAndNotice(event)">
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Date</label>
+                    <input type="text" id="set-date" placeholder="e.g. Next Tuesday, Sept 8">
+
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Time</label>
+                    <input type="text" id="set-time" placeholder="e.g. 6:00 PM - 10:00 PM">
+
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Court Location</label>
+                    <input type="text" id="set-venue" placeholder="e.g. Barangay Central Court">
+
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Notice Board Announcement</label>
+                    <textarea id="set-msg" rows="3" placeholder="Important notices..."></textarea>
+
+                    <button type="submit" class="btn-main w-full">Save Updates</button>
+                </form>
+            </div>
+
+            <!-- Upload Photo & Player Approval -->
+            <div>
+                <div class="card mb-4">
+                    <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 12px;">Upload Game Photos</h3>
+                    <input type="file" id="photo-input" accept="image/*">
+                    <button class="btn-main w-full mt-2" onclick="uploadGamePhoto()">Upload Photo</button>
+                </div>
+
+                <div class="card">
+                    <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 12px;">Player Approvals & Moderation</h3>
+                    <div id="admin-user-list"></div>
+                </div>
+            </div>
+        </div>
     </div>
 
 </body>
