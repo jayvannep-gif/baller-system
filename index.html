@@ -3,179 +3,451 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BALLER SYSTEM | FIREBASE B&W</title>
-    <link rel="stylesheet" href="style.css">
-    
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, query, where, getDocs, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    <title>Baller System - Matchmaking & Management</title>
+    <style>
+        :root {
+            --bg-color: #020617;
+            --card-bg: #0f172a;
+            --card-border: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-red: #f87171;
+            --accent-green: #4ade80;
+        }
 
-        // TODO: PALITAN ITO NG IYONG FIREBASE CONFIG GALING SA FIREBASE CONSOLE
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 16px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .tag {
+            background: #1e293b;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: var(--accent-blue);
+        }
+
+        .badge-paid {
+            background: #22c55e;
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .badge-unpaid {
+            background: #ef4444;
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .btn-main {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-add-a {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 2px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .btn-add-b {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 2px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .btn-remove {
+            background: #475569;
+            color: white;
+            border: none;
+            padding: 2px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7rem;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        @media (max-width: 600px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app">
+        <!-- Header -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h2>Baller System Roster</h2>
+            <span id="view-time" style="font-weight:bold; color:var(--accent-blue);">6:00 PM</span>
+        </div>
+
+        <!-- Generated Matches Section -->
+        <h3>Game Sets & Matchmaking</h3>
+        <div id="generated-matches"></div>
+
+        <!-- Active Roster Section -->
+        <h3>Checked-In Roster</h3>
+        <ul id="active-roster-list" style="padding:0; list-style:none;"></ul>
+
+        <!-- Admin User Management Panel -->
+        <div id="admin-panel" style="margin-top:24px;">
+            <h3>Admin User Management</h3>
+            <div id="admin-user-list"></div>
+        </div>
+    </div>
+
+    <!-- Firebase Script Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, doc, onSnapshot, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
         const firebaseConfig = {
             apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT.appspot.com",
-            messagingSenderId: "YOUR_ID",
+            authDomain: "ballerapp-61517.firebaseapp.com",
+            projectId: "ballerapp-61517",
+            storageBucket: "ballerapp-61517.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
             appId: "YOUR_APP_ID"
         };
 
         const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
         const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
+        const auth = getAuth(app);
 
-        const ADMIN_EMAIL = "jayvannep@gmail.com";
+        const SUPER_ADMIN_EMAIL = "superadmin@gmail.com"; 
+        const DEFAULT_GUEST_AVATAR = "https://via.placeholder.com/150";
 
-        // --- AUTH LOGIC ---
-        window.login = async () => {
-            const result = await signInWithPopup(auth, provider);
-            checkUser(result.user);
-        };
+        let isAdminUser = false;
+        let globalAttendingPool = [];
+        let customMatchesData = {};
 
-        window.logout = () => signOut(auth).then(() => location.reload());
+        function getAbbrPos(pos) {
+            if (!pos) return '[GUEST]';
+            if (pos.toLowerCase().includes('point')) return '[PG]';
+            if (pos.toLowerCase().includes('shooting')) return '[SG]';
+            if (pos.toLowerCase().includes('small')) return '[SF]';
+            if (pos.toLowerCase().includes('power')) return '[PF]';
+            if (pos.toLowerCase().includes('center')) return '[C]';
+            return `[${pos.toUpperCase()}]`;
+        }
 
-        function checkUser(user) {
-            onSnapshot(doc(db, "users", user.uid), (snap) => {
-                if (snap.exists()) {
-                    window.navigateTo('dashboard-page');
-                } else {
-                    window.navigateTo('signup-page');
+        // Auth Check
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const userDocRef = doc(db, "users", user.uid);
+                const userSnap = await getDoc(userDocRef);
+
+                if (userSnap.exists()) {
+                    const currentUserData = userSnap.data();
+
+                    if (currentUserData.isBanned && user.email !== SUPER_ADMIN_EMAIL) {
+                        alert("ACCOUNT RESTRICTED: " + (currentUserData.banReason || "Violated club policies."));
+                        signOut(auth);
+                        return;
+                    }
+
+                    isAdminUser = currentUserData.isAdmin || user.email === SUPER_ADMIN_EMAIL;
                 }
+            }
+        });
+
+        // Realtime Listener - Custom Match Sets
+        onSnapshot(doc(db, "settings", "custom_matches"), (snapshot) => {
+            if (snapshot.exists()) {
+                customMatchesData = snapshot.data() || {};
+            } else {
+                customMatchesData = {};
+            }
+            renderGameSets();
+        });
+
+        // Realtime Listener - Users
+        onSnapshot(collection(db, "users"), (snapshot) => {
+            let users = [];
+            globalAttendingPool = [];
+
+            snapshot.forEach(docSnap => {
+                let data = docSnap.data();
+                data.uid = docSnap.id;
+                users.push(data);
+
+                if (data.status === 'in') {
+                    globalAttendingPool.push(data);
+                }
+            });
+
+            renderAdminUserManagement(users);
+            renderActiveRoster();
+            renderGameSets();
+        });
+
+        function renderActiveRoster() {
+            const rosterList = document.getElementById('active-roster-list');
+            if (!rosterList) return;
+
+            rosterList.innerHTML = globalAttendingPool.length === 0 ? `<li style="color:var(--text-muted); list-style:none;">No players checked in yet.</li>` :
+                globalAttendingPool.map(p => `
+                    <li style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; background:#0f172a; padding:6px 10px; border-radius:6px; border:1px solid var(--card-border);">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <img src="${p.photoURL || DEFAULT_GUEST_AVATAR}" style="width:28px; height:28px; border-radius:50%; object-fit:cover;">
+                            <span><strong>${p.name || 'User'}</strong> - <span style="color:var(--accent-blue);">${getAbbrPos(p.position)}</span></span>
+                        </div>
+                        ${p.isPaid ? `<span class="badge-paid">PAID</span>` : `<span class="badge-unpaid">UNPAID</span>`}
+                    </li>
+                `).join('');
+        }
+
+        function renderGameSets() {
+            const matchesContainer = document.getElementById('generated-matches');
+            if (!matchesContainer) return;
+            matchesContainer.innerHTML = "";
+
+            let startTimeStr = document.getElementById('view-time') ? document.getElementById('view-time').innerText : "6:00 PM";
+            let baseMinutes = 19 * 60; 
+            if (startTimeStr.includes("6")) baseMinutes = 18 * 60;
+
+            for (let gameNumber = 1; gameNumber <= 4; gameNumber++) {
+                const gameKey = `game_${gameNumber}`;
+                const gameData = customMatchesData[gameKey] || { teamA: [], teamB: [] };
+
+                const teamA = gameData.teamA || [];
+                const teamB = gameData.teamB || [];
+
+                let matchStartMins = baseMinutes + (gameNumber - 1) * 45;
+                let startHH = Math.floor(matchStartMins / 60);
+                let startMM = matchStartMins % 60;
+                let timeFormatted = `${startHH % 12 || 12}:${startMM < 10 ? '0' : ''}${startMM} ${startHH >= 12 ? 'PM' : 'AM'}`;
+
+                const renderPlayerItem = (p) => {
+                    const nameStr = typeof p === 'string' ? p : (p.name || "Player");
+                    const posStr = p.position ? getAbbrPos(p.position) : '[GUEST]';
+                    return `
+                        <li style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <span><strong>${nameStr}</strong> <span style="font-size:0.75rem; color:#60a5fa; font-weight:600;">${posStr}</span></span>
+                            ${isAdminUser ? `<button class="btn-remove" onclick="removePlayerFromGame(${gameNumber}, '${nameStr}')">✕</button>` : ''}
+                        </li>
+                    `;
+                };
+
+                let adminPickerHtml = "";
+                if (isAdminUser) {
+                    let availablePlayers = globalAttendingPool.map(p => {
+                        const inTeamA = teamA.some(ta => ta.name === p.name);
+                        const inTeamB = teamB.some(tb => tb.name === p.name);
+
+                        return `
+                            <div style="display:flex; justify-content:space-between; align-items:center; background:#0f172a; padding:4px 8px; border-radius:4px; margin-bottom:4px; font-size:0.8rem;">
+                                <span>${p.name} <span style="color:#60a5fa; font-size:0.7rem;">${getAbbrPos(p.position)}</span></span>
+                                <div style="display:flex; gap:4px;">
+                                    ${!inTeamA ? `<button class="btn-add-a" onclick="addPlayerToTeam(${gameNumber}, '${p.name}', '${p.position}', 'A')">+ Team A</button>` : ''}
+                                    ${!inTeamB ? `<button class="btn-add-b" onclick="addPlayerToTeam(${gameNumber}, '${p.name}', '${p.position}', 'B')">+ Team B</button>` : ''}
+                                    ${(inTeamA || inTeamB) ? `<button class="btn-remove" onclick="removePlayerFromGame(${gameNumber}, '${p.name}')">Out</button>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    adminPickerHtml = `
+                        <details style="margin-top:10px; background:#1e293b; padding:8px; border-radius:6px;">
+                            <summary style="font-size:0.8rem; font-weight:bold; cursor:pointer; color:var(--accent-blue);">⚙️ Admin: In/Out Players Panel (${teamA.length + teamB.length}/10)</summary>
+                            <div style="margin-top:8px; max-height:160px; overflow-y:auto;">
+                                ${availablePlayers || '<p style="font-size:0.75rem; color:var(--text-muted);">No checked-in players available.</p>'}
+                            </div>
+                            <div style="margin-top:8px; display:flex; gap:6px;">
+                                <input type="text" id="custom-borrow-${gameNumber}" placeholder="Type manual/borrowed player..." style="margin:0; flex:1; font-size:0.75rem; padding:4px 6px; background:#0f172a; border:1px solid #334155; color:#fff; border-radius:4px;">
+                                <button class="btn-add-a" onclick="addManualPlayer(${gameNumber}, 'A')">+ A</button>
+                                <button class="btn-add-b" onclick="addManualPlayer(${gameNumber}, 'B')">+ B</button>
+                            </div>
+                        </details>
+                    `;
+                }
+
+                let card = document.createElement('div');
+                card.className = "card";
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #334155; padding-bottom:6px;">
+                        <span class="tag">GAME ${gameNumber}</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-weight:700; color:var(--accent-blue); font-size:0.8rem;">Est: ${timeFormatted}</span>
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div style="background:#1e293b; padding:8px; border-radius:6px;">
+                            <p style="font-weight:800; color:var(--accent-blue); margin:0 0 4px 0; font-size:0.85rem;">TEAM A (${teamA.length}/5)</p>
+                            <ol style="font-size:0.8rem; padding-left:14px; margin:0; line-height:1.4;">${teamA.map(p => renderPlayerItem(p)).join('')}</ol>
+                        </div>
+                        <div style="background:#1e293b; padding:8px; border-radius:6px;">
+                            <p style="font-weight:800; color:var(--accent-red); margin:0 0 4px 0; font-size:0.85rem;">TEAM B (${teamB.length}/5)</p>
+                            <ol style="font-size:0.8rem; padding-left:14px; margin:0; line-height:1.4;">${teamB.map(p => renderPlayerItem(p)).join('')}</ol>
+                        </div>
+                    </div>
+                    ${adminPickerHtml}
+                `;
+                matchesContainer.appendChild(card);
+            }
+        }
+
+        function renderAdminUserManagement(users) {
+            const container = document.getElementById('admin-user-list');
+            if (!container) return;
+            container.innerHTML = "";
+
+            users.forEach(u => {
+                if (u.email === SUPER_ADMIN_EMAIL) return;
+
+                let paymentBadge = `<span style="background:#64748b; color:#fff; padding:2px 6px; border-radius:4px; font-size:0.7rem; font-weight:bold;">N/A</span>`;
+                if (u.status === 'in') {
+                    paymentBadge = u.isPaid ? `<span class="badge-paid">PAID</span>` : `<span class="badge-unpaid">UNPAID</span>`;
+                }
+
+                let card = document.createElement('div');
+                card.style.cssText = "background:#0f172a; padding:10px; border-radius:8px; margin-bottom:8px; border:1px solid var(--card-border);";
+                card.innerHTML = `
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <img src="${u.photoURL || DEFAULT_GUEST_AVATAR}" style="width:36px; height:36px; border-radius:50%; object-fit:cover;">
+                                <div>
+                                    <p style="font-weight:700; margin:0; font-size:0.85rem;">${u.name || 'User'} <span style="font-size:0.7rem; color:var(--text-muted);">(${u.email})</span></p>
+                                    <p style="font-size:0.75rem; color:var(--text-muted); margin:0;">${u.position || 'N/A'} | ${u.height || "N/A"} | Status: <strong style="color:${u.status === 'in' ? '#4ade80' : '#f87171'};">${u.status ? u.status.toUpperCase() : 'OUT'}</strong></p>
+                                </div>
+                            </div>
+                            <div>${paymentBadge}</div>
+                        </div>
+                        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                            <button class="btn-outline" style="padding:3px 6px; font-size:0.7rem;" onclick="adminEditUserProfile('${u.uid}')">Edit</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
             });
         }
 
-        // --- PLAYER REGISTRATION ---
-        window.handleSignup = async (e) => {
-            e.preventDefault();
-            const user = auth.currentUser;
-            const userData = {
-                uid: user.uid,
-                name: user.displayName,
-                email: user.email,
-                height: document.getElementById('reg-h').value,
-                weight: document.getElementById('reg-w').value,
-                age: document.getElementById('reg-a').value,
-                position: document.getElementById('reg-p').value,
-                status: 'out',
-                isBanned: false
-            };
-            await setDoc(doc(db, "users", user.uid), userData);
-            window.navigateTo('dashboard-page');
+        // Global Handlers
+        window.addPlayerToTeam = async (gameNum, name, position, teamLetter) => {
+            if (!isAdminUser) return;
+            const gameKey = `game_${gameNum}`;
+            let currentData = customMatchesData[gameKey] || { teamA: [], teamB: [] };
+
+            currentData.teamA = currentData.teamA.filter(p => p.name !== name);
+            currentData.teamB = currentData.teamB.filter(p => p.name !== name);
+
+            if (teamLetter === 'A') {
+                if (currentData.teamA.length >= 5) return alert("Team A is already full!");
+                currentData.teamA.push({ name, position });
+            } else {
+                if (currentData.teamB.length >= 5) return alert("Team B is already full!");
+                currentData.teamB.push({ name, position });
+            }
+
+            await setDoc(doc(db, "settings", "custom_matches"), {
+                [`game_${gameNum}`]: currentData
+            }, { merge: true });
         };
 
-        // --- REAL-TIME UPDATES (GAME INFO) ---
-        onSnapshot(doc(db, "settings", "game_info"), (doc) => {
-            if (doc.exists()) {
-                const data = doc.data();
-                document.getElementById('view-date').innerText = "DATE: " + (data.date || 'TBA');
-                document.getElementById('view-time').innerText = "TIME: " + (data.time || 'TBA');
-                document.getElementById('view-venue').innerText = "VENUE: " + (data.venue || 'TBA');
-                document.getElementById('view-announcement').innerText = data.announcement || 'NO ANNOUNCEMENT';
-            }
-        });
+        window.addManualPlayer = async (gameNum, teamLetter) => {
+            if (!isAdminUser) return;
+            const input = document.getElementById(`custom-borrow-${gameNum}`);
+            const name = input.value.trim();
+            if (!name) return;
 
-        // --- ADMIN UPDATE ---
-        window.updateGame = async (e) => {
-            e.preventDefault();
-            await setDoc(doc(db, "settings", "game_info"), {
-                date: document.getElementById('set-date').value,
-                time: document.getElementById('set-time').value,
-                venue: document.getElementById('set-venue').value,
-                announcement: document.getElementById('set-msg').value
+            await window.addPlayerToTeam(gameNum, name, 'BORROWED', teamLetter);
+            input.value = "";
+        };
+
+        window.removePlayerFromGame = async (gameNum, name) => {
+            if (!isAdminUser) return;
+            const gameKey = `game_${gameNum}`;
+            let currentData = customMatchesData[gameKey] || { teamA: [], teamB: [] };
+
+            currentData.teamA = currentData.teamA.filter(p => p.name !== name);
+            currentData.teamB = currentData.teamB.filter(p => p.name !== name);
+
+            await setDoc(doc(db, "settings", "custom_matches"), {
+                [`game_${gameNum}`]: currentData
+            }, { merge: true });
+        };
+
+        window.adminEditUserProfile = async (uid) => {
+            const userDocRef = doc(db, "users", uid);
+            const userSnap = await getDoc(userDocRef);
+
+            if (!userSnap.exists()) {
+                alert("User not found!");
+                return;
+            }
+
+            const userData = userSnap.data();
+
+            const newName = prompt("Edit Player Name:", userData.name || "");
+            if (newName === null) return;
+
+            const newHeight = prompt("Edit Height (ft'in\"): ", userData.height || "");
+            if (newHeight === null) return;
+
+            const newPosition = prompt("Edit Position:", userData.position || "");
+            if (newPosition === null) return;
+
+            await updateDoc(userDocRef, {
+                name: newName,
+                height: newHeight,
+                position: newPosition
             });
-            alert("GAME UPDATED!");
+
+            alert("Player profile updated successfully!");
         };
-
-        // --- STATUS UPDATE ---
-        window.setStatus = async (status) => {
-            await updateDoc(doc(db, "users", auth.currentUser.uid), { status });
-            alert("Status Updated: " + status.toUpperCase());
-        };
-
-        // Admin check for UI
-        onAuthStateChanged(auth, (user) => {
-            if (user && user.email === ADMIN_EMAIL) {
-                document.getElementById('admin-btn').classList.remove('hidden');
-            }
-        });
-
     </script>
-</head>
-<body>
-
-    <div id="login-page" class="page">
-        <div class="hero-box">
-            <h1 class="logo-text">BALLER<span>APP</span></h1>
-            <button class="btn-main" onclick="login()">LOGIN WITH GOOGLE</button>
-        </div>
-    </div>
-
-    <div id="signup-page" class="page hidden">
-        <div class="container border-bold p-10">
-            <h2 class="section-title">PLAYER REGISTRATION</h2>
-            <form onsubmit="handleSignup(event)">
-                <input type="text" id="reg-h" placeholder="HEIGHT (CM)" required>
-                <input type="text" id="reg-w" placeholder="WEIGHT (KG)" required>
-                <input type="number" id="reg-a" placeholder="AGE" required>
-                <select id="reg-p" required>
-                    <option value="">POSITION</option>
-                    <option>GUARD</option>
-                    <option>FORWARD</option>
-                    <option>CENTER</option>
-                </select>
-                <button type="submit" class="btn-main w-full mt-4">SAVE PROFILE</button>
-            </form>
-        </div>
-    </div>
-
-    <div id="dashboard-page" class="page hidden">
-        <nav class="navbar border-b-4 border-white mb-6 pb-4 flex justify-between">
-            <h2 class="text-3xl font-black italic">DASHBOARD</h2>
-            <div class="flex gap-2">
-                <button id="admin-btn" class="btn-outline hidden" onclick="window.navigateTo('admin-page')">ADMIN</button>
-                <button class="btn-outline !border-red-600" onclick="logout()">LOGOUT</button>
-            </div>
-        </nav>
-
-        <div class="grid-2">
-            <div class="card border-bold">
-                <h3 class="tag">GAME SCHEDULE</h3>
-                <p id="view-date" class="text-2xl font-black mt-4">DATE: ---</p>
-                <p id="view-time" class="text-2xl font-black">TIME: ---</p>
-                <p id="view-venue" class="text-2xl font-black">VENUE: ---</p>
-                
-                <div class="flex gap-4 mt-6">
-                    <button class="btn-main flex-1" onclick="setStatus('in')">I'M IN</button>
-                    <button class="btn-outline flex-1" onclick="setStatus('out')">OUT</button>
-                </div>
-            </div>
-
-            <div class="card bg-white text-black">
-                <h3 class="tag !bg-black !text-white">ANNOUNCEMENT</h3>
-                <p id="view-announcement" class="text-lg font-bold mt-4">Loading...</p>
-            </div>
-        </div>
-    </div>
-
-    <div id="admin-page" class="page hidden">
-        <h1 class="text-red-600 text-4xl mb-6">ADMIN CONTROL: jayvannep@gmail.com</h1>
-        <div class="grid-2">
-            <div class="card border-red">
-                <h3 class="tag bg-red">SET SCHEDULE</h3>
-                <form onsubmit="updateGame(event)">
-                    <input type="text" id="set-date" placeholder="DATE">
-                    <input type="text" id="set-time" placeholder="TIME">
-                    <input type="text" id="set-venue" placeholder="VENUE">
-                    <textarea id="set-msg" placeholder="ANNOUNCEMENT"></textarea>
-                    <button class="btn-main w-full !bg-red-600 !text-white">UPDATE SYSTEM</button>
-                </form>
-            </div>
-        </div>
-        <button class="mt-10 underline" onclick="window.navigateTo('dashboard-page')">BACK TO DASHBOARD</button>
-    </div>
-
-    <script src="script.js"></script>
 </body>
 </html>
