@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BASKETBALL CLUB SYSTEM</title>
     
     <!-- Google Fonts -->
@@ -11,12 +11,37 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="style.css">
+
+    <style>
+        /* Mobile-First Responsive Styles & Scrollbars */
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: #0b1120; color: #f8fafc; }
+        
+        .scrollable-container {
+            max-height: 350px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        
+        /* Custom scrollbar for better mobile look */
+        .scrollable-container::-webkit-scrollbar { width: 6px; }
+        .scrollable-container::-webkit-scrollbar-track { background: #0f172a; border-radius: 4px; }
+        .scrollable-container::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+        @media (max-width: 768px) {
+            .grid-2 { display: flex; flex-direction: column; gap: 16px; }
+            .navbar { flex-direction: column; gap: 12px; align-items: flex-start; }
+            .navbar > div:last-child { width: 100%; justify-content: space-between; }
+            .card { padding: 12px !important; }
+            input, select, textarea, button { font-size: 0.9rem !important; }
+        }
+    </style>
     
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, getDocs, collection, updateDoc, deleteDoc, onSnapshot, addDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, getDocs, collection, updateDoc, deleteDoc, onSnapshot, addDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCPoQ-8anpEqtozvXlJCoaxl3hOv4E5uIg",
@@ -72,6 +97,7 @@
                 }
                 window.navigateTo('dashboard-page');
                 checkRoles(user.email);
+                renderUserProfileCard(currentUserData);
             } else {
                 window.navigateTo('signup-page');
             }
@@ -118,6 +144,7 @@
                 email: user.email,
                 height: document.getElementById('reg-h').value,
                 position: document.getElementById('reg-p').value,
+                photoURL: user.photoURL || 'https://via.placeholder.com/150',
                 status: 'out',
                 guests: [],
                 isApproved: user.email === SUPER_ADMIN_EMAIL,
@@ -129,6 +156,70 @@
             await setDoc(doc(db, "users", user.uid), userData);
             alert(user.email === SUPER_ADMIN_EMAIL ? "Registration successful!" : "Profile submitted! Please wait for Admin approval.");
             checkUserStatus(user);
+        };
+
+        // --- PROFILE EDITING ---
+        function renderUserProfileCard(data) {
+            const container = document.getElementById('user-profile-display');
+            if (!container) return;
+
+            container.innerHTML = `
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                    <img src="${data.photoURL || 'https://via.placeholder.com/150'}" style="width:60px; height:60px; border-radius:50%; object-fit:cover; border:2px solid var(--accent-blue);">
+                    <div>
+                        <h3 style="font-size:1.1rem; font-weight:700; margin:0;">${data.name}</h3>
+                        <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">${data.position} | ${data.height} cm</p>
+                    </div>
+                </div>
+                <div style="display:grid; gap:8px;">
+                    <label style="font-size:0.75rem; color:var(--text-muted);">Update Photo:</label>
+                    <input type="file" id="self-avatar-input" accept="image/*" style="font-size:0.8rem;">
+                    
+                    <label style="font-size:0.75rem; color:var(--text-muted);">Height (cm):</label>
+                    <input type="text" id="self-height-input" value="${data.height || ''}" style="margin:0;">
+
+                    <label style="font-size:0.75rem; color:var(--text-muted);">Position:</label>
+                    <select id="self-pos-input" style="margin:0;">
+                        <option ${data.position === 'Point Guard (PG)' ? 'selected' : ''}>Point Guard (PG)</option>
+                        <option ${data.position === 'Shooting Guard (SG)' ? 'selected' : ''}>Shooting Guard (SG)</option>
+                        <option ${data.position === 'Small Forward (SF)' ? 'selected' : ''}>Small Forward (SF)</option>
+                        <option ${data.position === 'Power Forward (PF)' ? 'selected' : ''}>Power Forward (PF)</option>
+                        <option ${data.position === 'Center (C)' ? 'selected' : ''}>Center (C)</option>
+                    </select>
+
+                    <button class="btn-main" style="padding:6px; font-size:0.8rem; margin-top:4px;" onclick="saveSelfProfile()">Save My Profile</button>
+                </div>
+            `;
+        }
+
+        window.saveSelfProfile = async () => {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const height = document.getElementById('self-height-input').value;
+            const position = document.getElementById('self-pos-input').value;
+            const avatarFile = document.getElementById('self-avatar-input').files[0];
+
+            let updates = { height, position };
+
+            if (avatarFile) {
+                if (avatarFile.size > 1048576) {
+                    alert("Image size is too large. Please select an image smaller than 1MB.");
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = async function (e) {
+                    updates.photoURL = e.target.result;
+                    await updateDoc(doc(db, "users", user.uid), updates);
+                    alert("Profile updated successfully!");
+                    location.reload();
+                };
+                reader.readAsDataURL(avatarFile);
+            } else {
+                await updateDoc(doc(db, "users", user.uid), updates);
+                alert("Profile updated successfully!");
+                location.reload();
+            }
         };
 
         // --- REALTIME DATA LISTENERS ---
@@ -144,21 +235,25 @@
                 }
             });
 
-            // Photos Gallery Realtime with Admin Delete Option
+            // Photos Gallery
             onSnapshot(collection(db, "photos"), (snapshot) => {
                 const gallery = document.getElementById('photo-gallery');
+                if (!gallery) return;
                 gallery.innerHTML = "";
                 snapshot.forEach(docSnap => {
                     const photoId = docSnap.id;
                     const data = docSnap.data();
                     
                     const wrapper = document.createElement('div');
-                    wrapper.style.cssText = "position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--card-border);";
+                    wrapper.style.cssText = "position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--card-border); background: #0f172a;";
                     
-                    let html = `<img src="${data.url}" style="width: 100%; height: 160px; object-fit: cover; display: block;">`;
-                    if (isAdminUser) {
-                        html += `<button onclick="deletePhoto('${photoId}')" style="position: absolute; top: 6px; right: 6px; background: rgba(220, 38, 38, 0.85); color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 0.75rem; cursor: pointer; font-weight: bold;">Delete</button>`;
-                    }
+                    let html = `
+                        <img src="${data.url}" style="width: 100%; height: 140px; object-fit: cover; display: block;">
+                        <div style="position: absolute; top: 6px; right: 6px; display: flex; gap: 4px;">
+                            <a href="${data.url}" download="photo.jpg" style="background: rgba(37, 99, 235, 0.9); color: white; text-decoration: none; border-radius: 4px; padding: 3px 6px; font-size: 0.7rem; font-weight: bold;">Download</a>
+                            ${isAdminUser ? `<button onclick="deletePhoto('${photoId}')" style="background: rgba(220, 38, 38, 0.9); color: white; border: none; border-radius: 4px; padding: 3px 6px; font-size: 0.7rem; cursor: pointer;">Delete</button>` : ''}
+                        </div>
+                    `;
                     wrapper.innerHTML = html;
                     gallery.appendChild(wrapper);
                 });
@@ -173,10 +268,10 @@
                     const u = docSnap.data();
                     allUsers.push(u);
                     if (u.status === 'in' && u.isApproved && !u.isBanned) {
-                        attendingPool.push({ uid: u.uid, name: u.name, position: u.position, isMain: true });
+                        attendingPool.push({ uid: u.uid, name: u.name, position: u.position, photoURL: u.photoURL, isMain: true });
                         if (u.guests && u.guests.length > 0) {
                             u.guests.forEach(gName => {
-                                attendingPool.push({ uid: u.uid, name: `${gName} (${u.name}'s Guest)`, position: 'GUEST', isMain: false });
+                                attendingPool.push({ uid: u.uid, name: `${gName} (${u.name}'s Guest)`, position: 'GUEST', photoURL: 'https://via.placeholder.com/150', isMain: false });
                             });
                         }
                     }
@@ -186,7 +281,7 @@
                 renderAdminUserManagement(allUsers);
             });
 
-            // Admin All Messages Realtime Listener
+            // Admin Messages Realtime Listener
             onSnapshot(collection(db, "messages"), (snapshot) => {
                 const container = document.getElementById('admin-messages-list');
                 if (!container) return;
@@ -197,17 +292,20 @@
                     const msgId = docSnap.id;
                     
                     const card = document.createElement('div');
-                    card.style.cssText = "background: #0f172a; padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--card-border);";
+                    card.style.cssText = "background: #0f172a; padding: 10px; border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--card-border); position: relative;";
                     
-                    let repliesHtml = (msgDoc.replies || []).map(r => `<div style="font-size:0.8rem; background:#1e293b; padding:6px; border-radius:4px; margin-top:4px;"><strong>${r.sender}:</strong> ${r.text}</div>`).join('');
+                    let repliesHtml = (msgDoc.replies || []).map(r => `<div style="font-size:0.8rem; background:#1e293b; padding:4px 8px; border-radius:4px; margin-top:4px;"><strong>${r.sender}:</strong> ${r.text}</div>`).join('');
 
                     card.innerHTML = `
-                        <p style="font-size:0.85rem; font-weight:700; color:var(--accent-blue);">${msgDoc.senderName} (${msgDoc.senderEmail})</p>
-                        <p style="font-size:0.9rem; margin:6px 0;">${msgDoc.text}</p>
-                        <div style="margin-top:8px;">${repliesHtml}</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <p style="font-size:0.8rem; font-weight:700; color:var(--accent-blue); margin:0;">${msgDoc.senderName} (${msgDoc.senderEmail})</p>
+                            <button onclick="deleteMessage('${msgId}')" style="background:transparent; border:none; color:#f87171; font-size:0.75rem; cursor:pointer; font-weight:bold;">[Delete]</button>
+                        </div>
+                        <p style="font-size:0.85rem; margin:6px 0;">${msgDoc.text}</p>
+                        <div style="margin-top:6px;">${repliesHtml}</div>
                         <div style="display:flex; gap:6px; margin-top:8px;">
-                            <input type="text" id="reply-input-${msgId}" placeholder="Type reply..." style="margin:0; padding:6px 10px; font-size:0.8rem;">
-                            <button class="btn-main" style="padding:6px 12px; font-size:0.8rem;" onclick="sendAdminReply('${msgId}')">Reply</button>
+                            <input type="text" id="reply-input-${msgId}" placeholder="Type reply..." style="margin:0; padding:4px 8px; font-size:0.8rem; flex:1;">
+                            <button class="btn-main" style="padding:4px 8px; font-size:0.8rem;" onclick="sendAdminReply('${msgId}')">Reply</button>
                         </div>
                     `;
                     container.appendChild(card);
@@ -218,10 +316,18 @@
         // --- REALTIME AUTO MATCHMAKING ENGINE ---
         function renderRosterAndMatchmaking(pool) {
             const rosterList = document.getElementById('active-roster-list');
-            rosterList.innerHTML = pool.length === 0 ? `<li style="color:var(--text-muted); list-style:none;">No players checked in yet.</li>` :
-                pool.map(p => `<li><strong>${p.name}</strong> - <span style="color:var(--text-muted);">${p.position}</span></li>`).join('');
+            if (rosterList) {
+                rosterList.innerHTML = pool.length === 0 ? `<li style="color:var(--text-muted); list-style:none;">No players checked in yet.</li>` :
+                    pool.map(p => `
+                        <li style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                            <img src="${p.photoURL || 'https://via.placeholder.com/150'}" style="width:28px; height:28px; border-radius:50%; object-fit:cover;">
+                            <span><strong>${p.name}</strong> - <span style="color:var(--text-muted);">${p.position}</span></span>
+                        </li>
+                    `).join('');
+            }
 
             const matchesContainer = document.getElementById('generated-matches');
+            if (!matchesContainer) return;
             matchesContainer.innerHTML = "";
 
             if (pool.length < 10) {
@@ -232,9 +338,9 @@
             let gameNumber = 1;
             let currentPool = [...pool];
             let startTimeStr = document.getElementById('view-time').innerText;
-            let baseMinutes = 19 * 60; // Default 7:00 PM
+            let baseMinutes = 19 * 60; 
 
-            if (startTimeStr.includes("6")) baseMinutes = 18 * 60; // 6:00 PM
+            if (startTimeStr.includes("6")) baseMinutes = 18 * 60;
 
             while (currentPool.length >= 10) {
                 let game10 = currentPool.slice(0, 10);
@@ -248,33 +354,32 @@
 
                 let card = document.createElement('div');
                 card.className = "card";
-                card.style.cssText = "margin-bottom: 16px; border-color: var(--card-border); background: #0f172a;";
+                card.style.cssText = "margin-bottom: 12px; border-color: var(--card-border); background: #0f172a;";
                 card.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #334155; padding-bottom:8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #334155; padding-bottom:6px;">
                         <span class="tag">GAME ${gameNumber}</span>
-                        <span style="font-weight:700; color:var(--accent-blue); font-size:0.9rem;">Estimated Time: ${timeFormatted} (45 Mins)</span>
+                        <span style="font-weight:700; color:var(--accent-blue); font-size:0.8rem;">Est: ${timeFormatted}</span>
                     </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-                        <div style="background:#1e293b; padding:12px; border-radius:8px;">
-                            <p style="font-weight:800; color:var(--accent-blue); margin-bottom:6px;">TEAM A</p>
-                            <ol style="font-size:0.85rem; padding-left:16px; line-height:1.5;">${teamA.map(p => `<li>${p.name}</li>`).join('')}</ol>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                        <div style="background:#1e293b; padding:8px; border-radius:6px;">
+                            <p style="font-weight:800; color:var(--accent-blue); margin:0 0 4px 0; font-size:0.85rem;">TEAM A</p>
+                            <ol style="font-size:0.8rem; padding-left:14px; margin:0; line-height:1.4;">${teamA.map(p => `<li>${p.name}</li>`).join('')}</ol>
                         </div>
-                        <div style="background:#1e293b; padding:12px; border-radius:8px;">
-                            <p style="font-weight:800; color:#f87171; margin-bottom:6px;">TEAM B</p>
-                            <ol style="font-size:0.85rem; padding-left:16px; line-height:1.5;">${teamB.map(p => `<li>${p.name}</li>`).join('')}</ol>
+                        <div style="background:#1e293b; padding:8px; border-radius:6px;">
+                            <p style="font-weight:800; color:#f87171; margin:0 0 4px 0; font-size:0.85rem;">TEAM B</p>
+                            <ol style="font-size:0.8rem; padding-left:14px; margin:0; line-height:1.4;">${teamB.map(p => `<li>${p.name}</li>`).join('')}</ol>
                         </div>
                     </div>
                 `;
                 matchesContainer.appendChild(card);
 
-                // Rotation Engine: Game 1 players rest in Game 2, return in Game 3
                 currentPool = currentPool.slice(10).concat(game10);
                 gameNumber++;
                 if (gameNumber > 5) break; 
             }
         }
 
-        // --- PLAYER ACTIONS ---
+        // --- PLAYER / ADMIN PLAY ACTIONS ---
         window.setAttendance = async (status) => {
             const u = auth.currentUser;
             if (!u) return;
@@ -285,17 +390,17 @@
                 if (guestInput) {
                     guests = guestInput.split(',').map(s => s.trim()).filter(s => s.length > 0);
                     if (guests.length > 4) {
-                        alert("Maximum of 4 guests allowed per player (Total 5 including yourself).");
+                        alert("Maximum of 4 guests allowed per player.");
                         return;
                     }
                 }
             }
 
             await updateDoc(doc(db, "users", u.uid), { status, guests });
-            alert(status === 'in' ? "You are now checked in to play!" : "Your attendance has been canceled.");
+            alert(status === 'in' ? "Checked in successfully!" : "Play status canceled.");
         };
 
-        // --- MESSAGING SYSTEM ---
+        // --- MESSAGING & DELETE MESSAGE FEATURE ---
         window.sendPlayerMessage = async () => {
             const user = auth.currentUser;
             const text = document.getElementById('player-msg-input').value.trim();
@@ -311,7 +416,6 @@
             });
 
             document.getElementById('player-msg-input').value = "";
-            alert("Message sent to Admins!");
         };
 
         function listenToUserMessages(user) {
@@ -322,18 +426,31 @@
 
                 snapshot.forEach(docSnap => {
                     const data = docSnap.data();
+                    const msgId = docSnap.id;
                     if (data.senderUid === user.uid) {
                         let div = document.createElement('div');
-                        div.style.cssText = "background: #0f172a; padding: 10px; border-radius: 6px; margin-bottom: 8px; border: 1px solid var(--card-border); font-size: 0.85rem;";
+                        div.style.cssText = "background: #0f172a; padding: 8px; border-radius: 6px; margin-bottom: 6px; border: 1px solid var(--card-border); font-size: 0.85rem;";
                         
-                        let repliesHtml = (data.replies || []).map(r => `<div style="font-size:0.8rem; color:#60a5fa; margin-top:4px; padding-left:8px; border-left:2px solid var(--accent-blue);"><strong>${r.sender}:</strong> ${r.text}</div>`).join('');
+                        let repliesHtml = (data.replies || []).map(r => `<div style="font-size:0.75rem; color:#60a5fa; margin-top:4px; padding-left:6px; border-left:2px solid var(--accent-blue);"><strong>${r.sender}:</strong> ${r.text}</div>`).join('');
                         
-                        div.innerHTML = `<strong>You:</strong> ${data.text}${repliesHtml}`;
+                        div.innerHTML = `
+                            <div style="display:flex; justify-content:space-between;">
+                                <span><strong>You:</strong> ${data.text}</span>
+                                <button onclick="deleteMessage('${msgId}')" style="background:transparent; border:none; color:#f87171; font-size:0.7rem; cursor:pointer;">[Delete]</button>
+                            </div>
+                            ${repliesHtml}
+                        `;
                         container.appendChild(div);
                     }
                 });
             });
         }
+
+        window.deleteMessage = async (msgId) => {
+            if (confirm("Are you sure you want to delete this message?")) {
+                await deleteDoc(doc(db, "messages", msgId));
+            }
+        };
 
         window.sendAdminReply = async (msgId) => {
             const user = auth.currentUser;
@@ -355,48 +472,7 @@
             }
         };
 
-        // --- ADMIN & SUPER ADMIN ACTIONS ---
-        window.updateScheduleAndNotice = async (e) => {
-            e.preventDefault();
-            await setDoc(doc(db, "settings", "game_info"), {
-                date: document.getElementById('set-date').value,
-                time: document.getElementById('set-time').value,
-                venue: document.getElementById('set-venue').value,
-                announcement: document.getElementById('set-msg').value
-            });
-            alert("Game Schedule & Notice Board Updated!");
-        };
-
-        window.uploadGamePhoto = async () => {
-            const fileInput = document.getElementById('photo-input');
-            const file = fileInput.files[0];
-            if (!file) return alert("Please select an image file first.");
-
-            if (file.size > 1048576) {
-                alert("File size is too large. Please select an image smaller than 1MB.");
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = async function (e) {
-                const base64Image = e.target.result;
-                await setDoc(doc(db, "photos", `${Date.now()}`), { 
-                    url: base64Image, 
-                    createdAt: new Date().toISOString() 
-                });
-                alert("Photo uploaded successfully!");
-                fileInput.value = "";
-            };
-            reader.readAsDataURL(file);
-        };
-
-        window.deletePhoto = async (photoId) => {
-            if (confirm("Are you sure you want to delete this photo?")) {
-                await deleteDoc(doc(db, "photos", photoId));
-                alert("Photo deleted successfully!");
-            }
-        };
-
+        // --- ADMIN PLAYER CONTROL LIST ---
         function renderAdminUserManagement(users) {
             const container = document.getElementById('admin-user-list');
             if (!container) return;
@@ -406,47 +482,134 @@
                 if (u.email === SUPER_ADMIN_EMAIL) return;
                 
                 let card = document.createElement('div');
-                card.style.cssText = "background:#0f172a; padding:12px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;";
+                card.style.cssText = "background:#0f172a; padding:10px; border-radius:8px; margin-bottom:8px; border:1px solid var(--card-border);";
                 card.innerHTML = `
-                    <div>
-                        <p style="font-weight:700;">${u.name} <span style="font-size:0.75rem; color:var(--text-muted);">(${u.email})</span></p>
-                        <p style="font-size:0.8rem; color:var(--text-muted);">Pos: ${u.position} | Ht: ${u.height}cm | Attendance: <strong style="color:${u.status === 'in' ? '#4ade80' : '#f87171'};">${u.status ? u.status.toUpperCase() : 'OUT'}</strong></p>
-                        ${u.warning ? `<p style="font-size:0.75rem; color:#f87171;">Warning: ${u.warning}</p>` : ''}
-                    </div>
-                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                        ${!u.isApproved ? `<button class="btn-main" style="padding:4px 8px; font-size:0.75rem;" onclick="approveUser('${u.uid}')">Approve</button>` : ''}
-                        <button class="btn-outline" style="padding:4px 8px; font-size:0.75rem; border-color:${u.status === 'in' ? '#f87171' : '#4ade80'}; color:${u.status === 'in' ? '#f87171' : '#4ade80'};" onclick="toggleUserAttendance('${u.uid}', '${u.status === 'in' ? 'out' : 'in'}')">${u.status === 'in' ? 'Cancel Play' : 'Force Play'}</button>
-                        <button class="btn-outline" style="padding:4px 8px; font-size:0.75rem;" onclick="warnUser('${u.uid}')">Warn</button>
-                        <button class="btn-outline" style="padding:4px 8px; font-size:0.75rem; border-color:#f87171; color:#f87171;" onclick="toggleBan('${u.uid}', ${!u.isBanned})">${u.isBanned ? 'Unblock' : 'Block'}</button>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <img src="${u.photoURL || 'https://via.placeholder.com/150'}" style="width:36px; height:36px; border-radius:50%; object-fit:cover;">
+                            <div>
+                                <p style="font-weight:700; margin:0; font-size:0.85rem;">${u.name} <span style="font-size:0.7rem; color:var(--text-muted);">(${u.email})</span></p>
+                                <p style="font-size:0.75rem; color:var(--text-muted); margin:0;">${u.position} | ${u.height}cm | Status: <strong style="color:${u.status === 'in' ? '#4ade80' : '#f87171'};">${u.status ? u.status.toUpperCase() : 'OUT'}</strong></p>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                            ${!u.isApproved ? `<button class="btn-main" style="padding:3px 6px; font-size:0.7rem;" onclick="approveUser('${u.uid}')">Approve</button>` : ''}
+                            <button class="btn-outline" style="padding:3px 6px; font-size:0.7rem;" onclick="adminEditUserProfile('${u.uid}', '${u.name}', '${u.height}', '${u.position}')">Edit</button>
+                            <button class="btn-outline" style="padding:3px 6px; font-size:0.7rem; border-color:${u.status === 'in' ? '#f87171' : '#4ade80'}; color:${u.status === 'in' ? '#f87171' : '#4ade80'};" onclick="toggleUserAttendance('${u.uid}', '${u.status === 'in' ? 'out' : 'in'}')">${u.status === 'in' ? 'Cancel' : 'Force Play'}</button>
+                            <button class="btn-outline" style="padding:3px 6px; font-size:0.7rem;" onclick="warnUser('${u.uid}')">Warn</button>
+                            <button class="btn-outline" style="padding:3px 6px; font-size:0.7rem; border-color:#f87171; color:#f87171;" onclick="toggleBan('${u.uid}', ${!u.isBanned})">${u.isBanned ? 'Unblock' : 'Block'}</button>
+                        </div>
                     </div>
                 `;
                 container.appendChild(card);
             });
         }
 
+        window.adminEditUserProfile = async (uid, currentName, currentHeight, currentPosition) => {
+            const newName = prompt("Edit Player Name:", currentName);
+            if (newName === null) return;
+
+            const newHeight = prompt("Edit Height (cm):", currentHeight);
+            if (newHeight === null) return;
+
+            const newPosition = prompt("Edit Position:", currentPosition);
+            if (newPosition === null) return;
+
+            await updateDoc(doc(db, "users", uid), {
+                name: newName,
+                height: newHeight,
+                position: newPosition
+            });
+
+            alert("Player profile updated!");
+        };
+
+        // --- SCHEDULE UPDATE WITH AUTOMATIC POOL & MATCHMAKING RESET ---
+        window.updateScheduleAndNotice = async (e) => {
+            e.preventDefault();
+            
+            if (!confirm("Updating the schedule will reset the active roster and player attendance. Do you want to proceed?")) {
+                return;
+            }
+
+            try {
+                const batch = writeBatch(db);
+
+                // 1. Update Game Details
+                const gameInfoRef = doc(db, "settings", "game_info");
+                batch.set(gameInfoRef, {
+                    date: document.getElementById('set-date').value,
+                    time: document.getElementById('set-time').value,
+                    venue: document.getElementById('set-venue').value,
+                    announcement: document.getElementById('set-msg').value
+                });
+
+                // 2. Reset All Players' Attendance & Guests
+                const usersSnap = await getDocs(collection(db, "users"));
+                usersSnap.forEach((userDoc) => {
+                    const userRef = doc(db, "users", userDoc.id);
+                    batch.update(userRef, {
+                        status: 'out',
+                        guests: []
+                    });
+                });
+
+                // Commit the batch transaction
+                await batch.commit();
+
+                alert("Game Schedule updated! Player attendance pool and matchmaking have been reset for the new game.");
+            } catch (err) {
+                alert("Error updating schedule: " + err.message);
+            }
+        };
+
+        window.uploadGamePhoto = async () => {
+            const fileInput = document.getElementById('photo-input');
+            const file = fileInput.files[0];
+            if (!file) return alert("Select an image first.");
+
+            if (file.size > 1048576) {
+                alert("File size is too large. Choose under 1MB.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function (e) {
+                await setDoc(doc(db, "photos", `${Date.now()}`), { 
+                    url: e.target.result, 
+                    createdAt: new Date().toISOString() 
+                });
+                alert("Photo uploaded!");
+                fileInput.value = "";
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.deletePhoto = async (photoId) => {
+            if (confirm("Delete this photo?")) {
+                await deleteDoc(doc(db, "photos", photoId));
+            }
+        };
+
         window.toggleUserAttendance = async (uid, newStatus) => {
             await updateDoc(doc(db, "users", uid), { status: newStatus, guests: [] });
-            alert(`Player attendance updated to ${newStatus.toUpperCase()}`);
         };
 
         window.approveUser = async (uid) => {
             await updateDoc(doc(db, "users", uid), { isApproved: true });
-            alert("Player approved!");
         };
 
         window.warnUser = async (uid) => {
-            const reason = prompt("Enter warning reason (e.g. Unpaid fees, conduct issue):");
+            const reason = prompt("Enter warning reason:");
             if (reason) await updateDoc(doc(db, "users", uid), { warning: reason });
         };
 
         window.toggleBan = async (uid, shouldBan) => {
-            let reason = "";
-            if (shouldBan) reason = prompt("Reason for Blocking:") || "Rule violation";
+            let reason = shouldBan ? (prompt("Reason for Block:") || "Rule violation") : "";
             await updateDoc(doc(db, "users", uid), { isBanned: shouldBan, banReason: reason });
-            alert(shouldBan ? "Player blocked." : "Player unblocked.");
         };
 
-        // --- SUPER ADMIN ONLY: ADD/REMOVE ADMINS ---
+        // --- SUPER ADMIN CONTROLS ---
         window.addAdmin = async () => {
             const email = document.getElementById('new-admin-email').value.trim();
             if (!email) return;
@@ -471,7 +634,6 @@
 
         window.removeAdmin = async (email) => {
             await deleteDoc(doc(db, "admins", email));
-            alert("Admin privileges revoked.");
             loadAdminData();
         };
     </script>
@@ -480,7 +642,7 @@
 
     <!-- 1. LOGIN PAGE -->
     <div id="login-page" class="page">
-        <div class="hero-box max-w-md mx-auto">
+        <div class="hero-box max-w-md mx-auto" style="padding: 20px; text-align: center;">
             <h1 class="logo-text">BASKETBALL<span>CLUB</span></h1>
             <p style="color: var(--text-muted);" class="mb-6">Tuesday Night League Portal (6PM - 10PM)</p>
             <button class="btn-main w-full" onclick="loginWithGoogle()">Sign in with Google</button>
@@ -489,9 +651,9 @@
 
     <!-- 2. PENDING APPROVAL GUARD -->
     <div id="pending-approval-page" class="page hidden">
-        <div class="hero-box max-w-md mx-auto">
-            <h2 style="font-size: 1.5rem; font-weight: 700; color: #facc15;" class="mb-2">Pending Admin Approval</h2>
-            <p style="color: var(--text-muted); font-size: 0.9rem;" class="mb-6">
+        <div class="hero-box max-w-md mx-auto" style="padding: 20px; text-align: center;">
+            <h2 style="font-size: 1.3rem; font-weight: 700; color: #facc15;" class="mb-2">Pending Admin Approval</h2>
+            <p style="color: var(--text-muted); font-size: 0.85rem;" class="mb-6">
                 Your account is registered. Please wait for an Admin or Super Admin to approve your profile before joining games.
             </p>
             <button class="btn-outline" onclick="logout()">Sign Out</button>
@@ -500,18 +662,18 @@
 
     <!-- 3. SIGNUP PAGE -->
     <div id="signup-page" class="page hidden">
-        <div class="card max-w-md mx-auto">
-            <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 4px;">Player Profile Setup</h2>
-            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 20px;">Complete your player information to get started.</p>
+        <div class="card max-w-md mx-auto" style="padding: 16px;">
+            <h2 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 4px;">Player Profile Setup</h2>
+            <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 16px;">Complete your player information to get started.</p>
             
             <form onsubmit="handleSignup(event)">
-                <label style="font-size: 0.8rem; color: var(--text-muted);">Full Name</label>
+                <label style="font-size: 0.75rem; color: var(--text-muted);">Full Name</label>
                 <input type="text" id="reg-name" placeholder="John Doe" required>
 
-                <label style="font-size: 0.8rem; color: var(--text-muted);">Height (cm)</label>
+                <label style="font-size: 0.75rem; color: var(--text-muted);">Height (cm)</label>
                 <input type="text" id="reg-h" placeholder="e.g. 175" required>
                 
-                <label style="font-size: 0.8rem; color: var(--text-muted);">Primary Position</label>
+                <label style="font-size: 0.75rem; color: var(--text-muted);">Primary Position</label>
                 <select id="reg-p" required>
                     <option value="">Select Position...</option>
                     <option>Point Guard (PG)</option>
@@ -527,141 +689,143 @@
     </div>
 
     <!-- 4. MAIN PLAYER DASHBOARD -->
-    <div id="dashboard-page" class="page hidden">
-        <nav class="navbar">
+    <div id="dashboard-page" class="page hidden" style="padding: 12px;">
+        <nav class="navbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
             <div>
-                <h2 style="font-size: 1.25rem; font-weight: 700;">Tuesday Basketball Club</h2>
-                <p style="font-size: 0.8rem; color: var(--text-muted);">Automatic Matchmaking & Schedule Portal</p>
+                <h2 style="font-size: 1.1rem; font-weight: 700; margin:0;">Tuesday Basketball Club</h2>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin:0;">Matchmaking & Schedule Portal</p>
             </div>
-            <div style="display: flex; gap: 8px;">
+            <div style="display: flex; gap: 6px;">
                 <button id="admin-nav-btn" class="btn-outline hidden" onclick="window.navigateTo('admin-page')">Admin Panel</button>
                 <button class="btn-outline" style="border-color: rgba(220, 38, 38, 0.4); color: #f87171;" onclick="logout()">Sign Out</button>
             </div>
         </nav>
 
         <div class="grid-2">
-            <!-- Game Details -->
+            <!-- Player Self Profile Card -->
+            <div class="card" id="user-profile-display">
+                <!-- Dynamically populated -->
+            </div>
+
+            <!-- Game Details & Attendance -->
             <div class="card">
                 <span class="tag">NEXT GAME SCHEDULE</span>
-                <div style="margin-top: 16px;">
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">DATE</p>
-                    <p id="view-date" style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px;">Loading...</p>
-
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">TIME</p>
-                    <p id="view-time" style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px;">Loading...</p>
-
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">COURT LOCATION</p>
-                    <p id="view-venue" style="font-size: 1.1rem; font-weight: 600;">Loading...</p>
+                <div style="margin-top: 8px; font-size: 0.8rem;">
+                    <p style="margin:2px 0; color: var(--text-muted);">DATE: <strong id="view-date" style="color:#fff;">Loading...</strong></p>
+                    <p style="margin:2px 0; color: var(--text-muted);">TIME: <strong id="view-time" style="color:#fff;">Loading...</strong></p>
+                    <p style="margin:2px 0; color: var(--text-muted);">VENUE: <strong id="view-venue" style="color:#fff;">Loading...</strong></p>
                 </div>
                 
-                <div style="margin-top:20px; border-top:1px solid #334155; padding-top:16px;">
-                    <label style="font-size: 0.8rem; color: var(--text-muted);">BRINGING GUESTS? (Max 4 Guests, Comma Separated):</label>
-                    <input type="text" id="guest-names-input" placeholder="e.g. Mark, Alex (Assigned to Same Team)">
+                <div style="margin-top:10px; border-top:1px solid #334155; padding-top:10px;">
+                    <label style="font-size: 0.75rem; color: var(--text-muted);">GUESTS (Max 4, Comma Separated):</label>
+                    <input type="text" id="guest-names-input" placeholder="e.g. Mark, Alex" style="margin-bottom:8px;">
 
-                    <div style="display: flex; gap: 12px; margin-top: 8px;">
-                        <button class="btn-main" style="flex: 1;" onclick="setAttendance('in')">PLAY (ATTEND)</button>
-                        <button class="btn-outline" style="flex: 1; border-color:#f87171; color:#f87171;" onclick="setAttendance('out')">NO (CANCEL)</button>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-main" style="flex: 1; padding:8px;" onclick="setAttendance('in')">PLAY (ATTEND)</button>
+                        <button class="btn-outline" style="flex: 1; padding:8px; border-color:#f87171; color:#f87171;" onclick="setAttendance('out')">CANCEL</button>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Notice Board -->
-            <div class="card bg-white">
-                <span class="tag" style="background-color: #0f172a; color: #ffffff;">NOTICE BOARD</span>
-                <p id="view-announcement" style="margin-top: 16px; font-size: 0.95rem; line-height: 1.5; color: #334155;">
-                    Loading notices...
-                </p>
-            </div>
+        <!-- Notice Board Card -->
+        <div class="card bg-white" style="margin-top:16px;">
+            <span class="tag" style="background-color: #0f172a; color: #ffffff;">NOTICE BOARD</span>
+            <p id="view-announcement" style="margin-top: 8px; font-size: 0.85rem; line-height: 1.4; color: #334155;">
+                Loading notices...
+            </p>
         </div>
 
         <!-- Realtime Auto Matchmaking Schedule -->
-        <div class="card" style="margin-top:20px;">
-            <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:12px;">AUTOMATIC MATCHMAKING & GAME ROTATION</h3>
+        <div class="card" style="margin-top:16px;">
+            <h3 style="font-size:1rem; font-weight:700; margin-bottom:8px;">AUTOMATIC MATCHMAKING & ROTATION</h3>
             <div id="generated-matches"></div>
         </div>
 
         <!-- Realtime Roster & Photos -->
-        <div class="grid-2" style="margin-top:20px;">
+        <div class="grid-2" style="margin-top:16px;">
             <div class="card">
-                <h3 style="font-size:1rem; font-weight:700; margin-bottom:12px;">ATTENDING PLAYERS POOL</h3>
-                <ol id="active-roster-list" style="padding-left:20px; font-size:0.9rem; line-height:1.6;"></ol>
+                <h3 style="font-size:0.95rem; font-weight:700; margin-bottom:8px;">ATTENDING PLAYERS POOL</h3>
+                <ul id="active-roster-list" class="scrollable-container" style="padding:0; list-style:none; font-size:0.85rem;"></ul>
             </div>
 
             <div class="card">
-                <h3 style="font-size:1rem; font-weight:700; margin-bottom:12px;">PHOTOS</h3>
-                <div id="photo-gallery" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:12px;"></div>
+                <h3 style="font-size:0.95rem; font-weight:700; margin-bottom:8px;">PHOTOS</h3>
+                <div id="photo-gallery" class="scrollable-container" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap:8px;"></div>
             </div>
         </div>
 
         <!-- Player Messaging Support Card -->
-        <div class="card" style="margin-top:20px;">
-            <h3 style="font-size:1rem; font-weight:700; margin-bottom:12px;">MESSAGE ADMIN / SUPPORT</h3>
-            <div id="player-messages-thread" style="margin-bottom:12px;"></div>
-            <div style="display:flex; gap:8px;">
-                <input type="text" id="player-msg-input" placeholder="Ask a question or send a note to Admins..." style="margin:0;">
-                <button class="btn-main" onclick="sendPlayerMessage()">Send</button>
+        <div class="card" style="margin-top:16px;">
+            <h3 style="font-size:0.95rem; font-weight:700; margin-bottom:8px;">MESSAGE ADMIN / SUPPORT</h3>
+            <div id="player-messages-thread" class="scrollable-container" style="margin-bottom:8px;"></div>
+            <div style="display:flex; gap:6px;">
+                <input type="text" id="player-msg-input" placeholder="Type a message to admins..." style="margin:0; flex:1;">
+                <button class="btn-main" style="padding: 6px 12px;" onclick="sendPlayerMessage()">Send</button>
             </div>
         </div>
     </div>
 
     <!-- 5. ADMIN & SUPER ADMIN PANEL -->
-    <div id="admin-page" class="page hidden">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <div id="admin-page" class="page hidden" style="padding: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <div>
-                <h1 style="font-size: 1.5rem; font-weight: 700;">Admin Management Portal</h1>
-                <p style="font-size: 0.85rem; color: var(--text-muted);">Manage schedule, attendance, moderation, and messages.</p>
+                <h1 style="font-size: 1.2rem; font-weight: 700; margin:0;">Admin Management Portal</h1>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin:0;">Manage schedule, player controls, and support inbox.</p>
             </div>
-            <button class="btn-outline" onclick="window.navigateTo('dashboard-page')">← Dashboard</button>
+            <button class="btn-outline" style="padding:4px 8px;" onclick="window.navigateTo('dashboard-page')">← Dashboard</button>
         </div>
 
         <!-- Super Admin Section -->
-        <div id="super-admin-section" class="card hidden mb-6" style="border-color:var(--accent-red); margin-bottom: 20px;">
+        <div id="super-admin-section" class="card hidden mb-6" style="border-color:var(--accent-red); margin-bottom: 16px;">
             <span class="tag" style="background:var(--accent-red);">SUPER ADMIN CONTROLS</span>
-            <h3 style="font-size:1rem; font-weight:700; margin-top:10px;">Manage Club Admins</h3>
-            <div style="display:flex; gap:8px; margin-top:8px;">
-                <input type="email" id="new-admin-email" placeholder="Enter email to grant Admin access" style="margin:0;">
-                <button class="btn-main" onclick="addAdmin()">Add Admin</button>
+            <h3 style="font-size:0.9rem; font-weight:700; margin-top:6px;">Manage Club Admins</h3>
+            <div style="display:flex; gap:6px; margin-top:6px;">
+                <input type="email" id="new-admin-email" placeholder="Enter admin email..." style="margin:0; flex:1;">
+                <button class="btn-main" onclick="addAdmin()">Add</button>
             </div>
-            <ul id="admin-list-display" style="margin-top:12px; font-size:0.85rem; padding-left:20px;"></ul>
+            <ul id="admin-list-display" style="margin-top:8px; font-size:0.8rem; padding-left:16px;"></ul>
         </div>
 
         <div class="grid-2">
             <!-- Schedule Setter -->
             <div class="card">
-                <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 12px;">Set Game Schedule & Location</h3>
+                <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px;">Set Schedule & Location</h3>
                 <form onsubmit="updateScheduleAndNotice(event)">
-                    <label style="font-size: 0.8rem; color: var(--text-muted);">Date</label>
+                    <label style="font-size: 0.75rem; color: var(--text-muted);">Date</label>
                     <input type="text" id="set-date" placeholder="e.g. Tuesday, Sept 8">
 
-                    <label style="font-size: 0.8rem; color: var(--text-muted);">Time</label>
+                    <label style="font-size: 0.75rem; color: var(--text-muted);">Time</label>
                     <input type="text" id="set-time" placeholder="e.g. 6:00 PM - 10:00 PM">
 
-                    <label style="font-size: 0.8rem; color: var(--text-muted);">Court Location</label>
-                    <input type="text" id="set-venue" placeholder="e.g. Central Community Center Court">
+                    <label style="font-size: 0.75rem; color: var(--text-muted);">Court Location</label>
+                    <input type="text" id="set-venue" placeholder="e.g. Central Community Center">
 
-                    <label style="font-size: 0.8rem; color: var(--text-muted);">Notice Board Announcement</label>
-                    <textarea id="set-msg" rows="3" placeholder="Important notices for players..."></textarea>
+                    <label style="font-size: 0.75rem; color: var(--text-muted);">Notice Announcement</label>
+                    <textarea id="set-msg" rows="3" placeholder="Notices for players..."></textarea>
 
-                    <button type="submit" class="btn-main w-full">Save Updates</button>
+                    <button type="submit" class="btn-main w-full" style="margin-top:6px;">Save Updates & Reset Pool</button>
                 </form>
             </div>
 
             <!-- Upload Photo, Player Moderation & Messages -->
             <div>
-                <div class="card" style="margin-bottom: 20px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 12px;">Upload Game Photos</h3>
-                    <input type="file" id="photo-input" accept="image/*">
-                    <button class="btn-main w-full" style="margin-top:8px;" onclick="uploadGamePhoto()">Upload Photo</button>
+                <div class="card" style="margin-bottom: 16px;">
+                    <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px;">Upload Game Photos</h3>
+                    <input type="file" id="photo-input" accept="image/*" style="font-size:0.8rem;">
+                    <button class="btn-main w-full" style="margin-top:6px;" onclick="uploadGamePhoto()">Upload Photo</button>
                 </div>
 
-                <div class="card" style="margin-bottom: 20px;">
-                    <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 12px;">Player Approvals & Attendance Control</h3>
-                    <div id="admin-user-list"></div>
+                <div class="card" style="margin-bottom: 16px;">
+                    <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px;">Player Approvals & Controls</h3>
+                    <!-- SCROLLABLE CONTAINER -->
+                    <div id="admin-user-list" class="scrollable-container"></div>
                 </div>
 
                 <div class="card">
-                    <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 12px;">Player Messages & Support Inbox</h3>
-                    <div id="admin-messages-list"></div>
+                    <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px;">Messages & Support Inbox</h3>
+                    <!-- SCROLLABLE CONTAINER -->
+                    <div id="admin-messages-list" class="scrollable-container"></div>
                 </div>
             </div>
         </div>
