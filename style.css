@@ -1,0 +1,23 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #000; color: #fff; font-family: 'Arial Black', sans-serif; text-transform: uppercase; }
+.hidden { display: none !important; }
+
+.page { padding: 20px; min-height: 100vh; }
+.hero-box { height: 80vh; border: 10px solid #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.logo-text { font-size: 4rem; font-style: italic; }
+.logo-text span { background: #fff; color: #000; padding: 0 10px; }
+
+.btn-main { background: #fff; color: #000; border: none; padding: 15px 30px; font-weight: 900; cursor: pointer; }
+.btn-outline { background: transparent; border: 3px solid #fff; color: #fff; padding: 10px; cursor: pointer; font-weight: 900; }
+
+input, select, textarea { width: 100%; padding: 12px; background: #000; border: 3px solid #fff; color: #fff; margin-bottom: 10px; font-weight: bold; }
+
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.card { padding: 40px; position: relative; }
+.border-bold { border: 5px solid #fff; }
+.border-red { border: 5px solid #ff0000; }
+.tag { position: absolute; top: -15px; left: 20px; background: #fff; color: #000; padding: 5px 15px; font-size: 0.8rem; }
+.bg-red { background: #ff0000 !important; color: #fff !important; }
+.flex { display: flex; }
+.gap-4 { gap: 1rem; }
+.flex-1 { flex: 1; }
