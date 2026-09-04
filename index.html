@@ -63,7 +63,6 @@
         let currentUserData = null;
         let isAdminUser = false;
         let customMatchesData = {}; 
-        let globalAttendingPool = []; // Stores latest attending players for easy selection
 
         window.navigateTo = (pageId) => {
             document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
@@ -121,11 +120,6 @@
             if (isAdminUser && adminNavBtn) {
                 adminNavBtn.classList.remove('hidden');
                 loadAdminData();
-            }
-
-            // Re-render profile card to show/hide admin self-payment button
-            if (currentUserData) {
-                renderUserProfileCard(currentUserData);
             }
         }
 
@@ -186,13 +180,6 @@
                 </div>
             ` : '';
 
-            // Admin / Super Admin self-payment toggle button
-            const adminSelfPayHtml = (isAdminUser && data.status === 'in') ? `
-                <button class="btn-outline" style="padding:4px; font-size:0.75rem; border-color:${data.isPaid ? '#ef4444' : '#22c55e'}; color:${data.isPaid ? '#ef4444' : '#22c55e'}; margin-top:4px;" onclick="toggleSelfPayment(${!data.isPaid})">
-                    ${data.isPaid ? 'Mark Myself UNPAID' : 'Mark Myself PAID'}
-                </button>
-            ` : '';
-
             container.innerHTML = `
                 ${warningHtml}
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
@@ -203,12 +190,9 @@
                             <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">${data.position} | ${data.height || "N/A"}</p>
                         </div>
                     </div>
-                    <div style="text-align:right;">
-                        ${paymentBadge}
-                    </div>
+                    <div>${paymentBadge}</div>
                 </div>
-                ${adminSelfPayHtml}
-                <div style="display:grid; gap:8px; margin-top:8px;">
+                <div style="display:grid; gap:8px;">
                     <label style="font-size:0.75rem; color:var(--text-muted);">Update Photo:</label>
                     <input type="file" id="self-avatar-input" accept="image/*" style="font-size:0.8rem;">
                     
@@ -228,16 +212,6 @@
                 </div>
             `;
         }
-
-        window.toggleSelfPayment = async (newPaidStatus) => {
-            const u = auth.currentUser;
-            if (!u || !isAdminUser) return;
-
-            await updateDoc(doc(db, "users", u.uid), { isPaid: newPaidStatus });
-            currentUserData.isPaid = newPaidStatus;
-            renderUserProfileCard(currentUserData);
-            alert(`Payment status updated to: ${newPaidStatus ? 'PAID' : 'UNPAID'}`);
-        };
 
         window.saveSelfProfile = async () => {
             const user = auth.currentUser;
@@ -286,9 +260,6 @@
                 } else {
                     customMatchesData = {};
                 }
-                if (globalAttendingPool.length > 0) {
-                    renderRosterAndMatchmaking(globalAttendingPool);
-                }
             });
 
             onSnapshot(collection(db, "photos"), (snapshot) => {
@@ -335,7 +306,6 @@
                     }
                 });
 
-                globalAttendingPool = attendingPool;
                 renderRosterAndMatchmaking(attendingPool);
                 renderAdminUserManagement(allUsers);
             });
@@ -369,14 +339,6 @@
                     container.appendChild(card);
                 });
             });
-        }
-
-        // Helper to format position display (e.g., "Point Guard (PG)" -> "[PG]")
-        function getAbbrPos(posStr) {
-            if (!posStr) return "[N/A]";
-            if (posStr === "GUEST") return "[GUEST]";
-            const match = posStr.match(/\(([^)]+)\)/);
-            return match ? `[${match[1]}]` : `[${posStr}]`;
         }
 
         function renderRosterAndMatchmaking(pool) {
@@ -441,13 +403,6 @@
                 let startMM = matchStartMins % 60;
                 let timeFormatted = `${startHH % 12 || 12}:${startMM < 10 ? '0' : ''}${startMM} ${startHH >= 12 ? 'PM' : 'AM'}`;
 
-                // Render players with position tag displayed
-                const renderPlayerWithPos = (p) => {
-                    const nameStr = p.name || p;
-                    const posStr = p.position ? getAbbrPos(p.position) : '';
-                    return `<li><strong>${nameStr}</strong> <span style="font-size:0.75rem; color:#60a5fa; font-weight:600;">${posStr}</span></li>`;
-                };
-
                 let card = document.createElement('div');
                 card.className = "card";
                 card.style.cssText = "margin-bottom: 12px; border-color: var(--card-border); background: #0f172a;";
@@ -462,11 +417,11 @@
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                         <div style="background:#1e293b; padding:8px; border-radius:6px;">
                             <p style="font-weight:800; color:var(--accent-blue); margin:0 0 4px 0; font-size:0.85rem;">TEAM A</p>
-                            <ol style="font-size:0.8rem; padding-left:14px; margin:0; line-height:1.4;">${teamA.map(p => renderPlayerWithPos(p)).join('')}</ol>
+                            <ol style="font-size:0.8rem; padding-left:14px; margin:0; line-height:1.4;">${teamA.map(p => `<li>${p.name || p}</li>`).join('')}</ol>
                         </div>
                         <div style="background:#1e293b; padding:8px; border-radius:6px;">
                             <p style="font-weight:800; color:#f87171; margin:0 0 4px 0; font-size:0.85rem;">TEAM B</p>
-                            <ol style="font-size:0.8rem; padding-left:14px; margin:0; line-height:1.4;">${teamB.map(p => renderPlayerWithPos(p)).join('')}</ol>
+                            <ol style="font-size:0.8rem; padding-left:14px; margin:0; line-height:1.4;">${teamB.map(p => `<li>${p.name || p}</li>`).join('')}</ol>
                         </div>
                     </div>
                 `;
@@ -483,41 +438,23 @@
                 return;
             }
 
-            let currentTeamA = JSON.parse(decodeURIComponent(currentTeamAEnc));
-            let currentTeamB = JSON.parse(decodeURIComponent(currentTeamBEnc));
+            let currentTeamA = JSON.parse(decodeURIComponent(currentTeamAEnc)).map(p => p.name || p);
+            let currentTeamB = JSON.parse(decodeURIComponent(currentTeamBEnc)).map(p => p.name || p);
 
-            let namesA = currentTeamA.map(p => p.name || p);
-            let namesB = currentTeamB.map(p => p.name || p);
-
-            // Create a lookup map to preserve positions when admin updates names
-            let posLookup = {};
-            globalAttendingPool.forEach(p => {
-                posLookup[p.name] = p.position;
-            });
-
-            let promptMsg = `[GAME ${gameNum} EDIT SET]\n\nAvailable Checked-in Players:\n${globalAttendingPool.map(p => `${p.name} (${p.position})`).join(', ')}\n\nEdit TEAM A (comma separated):`;
-
-            let teamAStr = prompt(promptMsg, namesA.join(', '));
+            let teamAStr = prompt(`[GAME ${gameNum}] Update Team A Players (Comma separated):`, currentTeamA.join(', '));
             if (teamAStr === null) return;
 
-            let teamBStr = prompt(`[GAME ${gameNum}] Edit TEAM B (comma separated):`, namesB.join(', '));
+            let teamBStr = prompt(`[GAME ${gameNum}] Update Team B Players (Comma separated):`, currentTeamB.join(', '));
             if (teamBStr === null) return;
 
-            const teamAArray = teamAStr.split(',').map(s => {
-                let name = s.trim();
-                return { name: name, position: posLookup[name] || "PG" };
-            }).filter(p => p.name.length > 0);
-
-            const teamBArray = teamBStr.split(',').map(s => {
-                let name = s.trim();
-                return { name: name, position: posLookup[name] || "PG" };
-            }).filter(p => p.name.length > 0);
+            const teamAArray = teamAStr.split(',').map(s => ({ name: s.trim() })).filter(p => p.name.length > 0);
+            const teamBArray = teamBStr.split(',').map(s => ({ name: s.trim() })).filter(p => p.name.length > 0);
 
             await setDoc(doc(db, "settings", "custom_matches"), {
                 [`game_${gameNum}`]: { teamA: teamAArray, teamB: teamBArray }
             }, { merge: true });
 
-            alert(`Game ${gameNum} roster has been updated successfully!`);
+            alert(`Game ${gameNum} set updated!`);
         };
 
         window.setAttendance = async (status) => {
