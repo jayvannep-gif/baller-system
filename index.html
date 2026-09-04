@@ -17,7 +17,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, getDocs, collection, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCPoQ-8anpEqtozvXlJCoaxl3hOv4E5uIg",
@@ -31,7 +30,6 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const storage = getStorage(app);
         const provider = new GoogleAuthProvider();
 
         const SUPER_ADMIN_EMAIL = "jayvannep@gmail.com";
@@ -120,7 +118,7 @@
                 position: document.getElementById('reg-p').value,
                 status: 'out',
                 guests: [],
-                isApproved: user.email === SUPER_ADMIN_EMAIL, // Super Admin auto-approved
+                isApproved: user.email === SUPER_ADMIN_EMAIL,
                 isBanned: false,
                 warning: "",
                 createdAt: new Date().toISOString()
@@ -131,9 +129,9 @@
             checkUserStatus(user);
         };
 
-        // --- REALTIME DATA LISTENERS (Persistent Schedule, Notices, Photos, Matchmaking) ---
+        // --- REALTIME DATA LISTENERS ---
         function loadPersistentData() {
-            // Schedule & Notice
+            // Schedule & Notice Board Realtime
             onSnapshot(doc(db, "settings", "game_info"), (docSnap) => {
                 if (docSnap.exists()) {
                     const d = docSnap.data();
@@ -144,7 +142,7 @@
                 }
             });
 
-            // Photos Gallery
+            // Photos Gallery Realtime
             onSnapshot(collection(db, "photos"), (snapshot) => {
                 const gallery = document.getElementById('photo-gallery');
                 gallery.innerHTML = "";
@@ -152,12 +150,12 @@
                     const data = docSnap.data();
                     const img = document.createElement('img');
                     img.src = data.url;
-                    img.style.cssText = "width: 100%; height: 140px; object-fit: cover; border-radius: 8px;";
+                    img.style.cssText = "width: 100%; height: 160px; object-fit: cover; border-radius: 8px; border: 1px solid var(--card-border);";
                     gallery.appendChild(img);
                 });
             });
 
-            // Player Roster & Auto Matchmaking Engine
+            // Player Roster & Auto Matchmaking Realtime Engine
             onSnapshot(collection(db, "users"), (snapshot) => {
                 let attendingPool = [];
                 let allUsers = [];
@@ -180,26 +178,26 @@
             });
         }
 
-        // --- AUTO-MATCHMAKING ENGINE (10 players/game, 5v5, Rotation: Game 1 -> Rest Game 2 -> Play Game 3) ---
+        // --- REALTIME AUTO MATCHMAKING ENGINE ---
         function renderRosterAndMatchmaking(pool) {
             const rosterList = document.getElementById('active-roster-list');
-            rosterList.innerHTML = pool.map(p => `<li><strong>${p.name}</strong> - <span style="color:var(--text-muted);">${p.position}</span></li>`).join('');
+            rosterList.innerHTML = pool.length === 0 ? `<li style="color:var(--text-muted); list-style:none;">Wala pang nakakapag-register na maglalaro.</li>` :
+                pool.map(p => `<li><strong>${p.name}</strong> - <span style="color:var(--text-muted);">${p.position}</span></li>`).join('');
 
             const matchesContainer = document.getElementById('generated-matches');
             matchesContainer.innerHTML = "";
 
             if (pool.length < 10) {
-                matchesContainer.innerHTML = `<p style="color:var(--text-muted);">Kulang pa sa players. Need at least 10 players to generate 5v5 games. (Current: ${pool.length})</p>`;
+                matchesContainer.innerHTML = `<p style="color:var(--text-muted); font-size:0.9rem;">Kulang pa sa players para makabuo ng laro. Kailangan ng at least 10 players para sa 5v5. (Kasalukuyang count: ${pool.length})</p>`;
                 return;
             }
 
-            // Calculate Games
             let gameNumber = 1;
             let currentPool = [...pool];
             let startTimeStr = document.getElementById('view-time').innerText;
-            let baseMinutes = 18 * 60; // Default 6:00 PM if parsing fails
+            let baseMinutes = 19 * 60; // Default 7:00 PM (19:00)
 
-            if (startTimeStr.includes("7")) baseMinutes = 19 * 60; // 7:00 PM
+            if (startTimeStr.includes("6")) baseMinutes = 18 * 60; // 6:00 PM
 
             while (currentPool.length >= 10) {
                 let game10 = currentPool.slice(0, 10);
@@ -213,29 +211,29 @@
 
                 let card = document.createElement('div');
                 card.className = "card";
-                card.style.marginBottom = "16px";
+                card.style.cssText = "margin-bottom: 16px; border-color: var(--card-border); background: #0f172a;";
                 card.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #334155; padding-bottom:8px;">
                         <span class="tag">GAME ${gameNumber}</span>
-                        <span style="font-weight:700; color:var(--accent-blue);">Est. Time: ${timeFormatted} (45 Mins)</span>
+                        <span style="font-weight:700; color:var(--accent-blue); font-size:0.9rem;">Inaasahang Oras: ${timeFormatted} (45 Mins)</span>
                     </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-                        <div>
-                            <p style="font-weight:700; border-bottom:1px solid #334155; padding-bottom:4px;">TEAM A</p>
-                            <ul style="font-size:0.85rem; padding-left:16px;">${teamA.map(p => `<li>${p.name}</li>`).join('')}</ul>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                        <div style="background:#1e293b; padding:12px; border-radius:8px;">
+                            <p style="font-weight:800; color:var(--accent-blue); margin-bottom:6px;">TEAM A</p>
+                            <ol style="font-size:0.85rem; padding-left:16px; line-height:1.5;">${teamA.map(p => `<li>${p.name}</li>`).join('')}</ol>
                         </div>
-                        <div>
-                            <p style="font-weight:700; border-bottom:1px solid #334155; padding-bottom:4px;">TEAM B</p>
-                            <ul style="font-size:0.85rem; padding-left:16px;">${teamB.map(p => `<li>${p.name}</li>`).join('')}</ul>
+                        <div style="background:#1e293b; padding:12px; border-radius:8px;">
+                            <p style="font-weight:800; color:#f87171; margin-bottom:6px;">TEAM B</p>
+                            <ol style="font-size:0.85rem; padding-left:16px; line-height:1.5;">${teamB.map(p => `<li>${p.name}</li>`).join('')}</ol>
                         </div>
                     </div>
                 `;
                 matchesContainer.appendChild(card);
 
-                // Rotation Rule: Game 1 players rest in Game 2, return in Game 3
+                // Rotation Rule: 1st Game players rest on 2nd Game, return on 3rd Game
                 currentPool = currentPool.slice(10).concat(game10);
                 gameNumber++;
-                if (gameNumber > 4) break; // Limit preview to 4 games max per session
+                if (gameNumber > 5) break; 
             }
         }
 
@@ -250,17 +248,17 @@
                 if (guestInput) {
                     guests = guestInput.split(',').map(s => s.trim()).filter(s => s.length > 0);
                     if (guests.length > 4) {
-                        alert("Hanggang 4 na kasama lang ang pwedeng idagdag (Total 5 kasama ka).");
+                        alert("Hanggang 4 na kasama lamang ang pwedeng idagdag (Total 5 kasama ka).");
                         return;
                     }
                 }
             }
 
             await updateDoc(doc(db, "users", u.uid), { status, guests });
-            alert(status === 'in' ? "Naka-set ka na sa laro!" : "Na-cancel ang paglaro mo.");
+            alert(status === 'in' ? "Nakasama ka na sa lineup ng laro!" : "Na-cancel na ang paglaro mo.");
         };
 
-        // --- ADMIN & SUPER ADMIN FUNCTIONS ---
+        // --- ADMIN & SUPER ADMIN ACTIONS ---
         window.updateScheduleAndNotice = async (e) => {
             e.preventDefault();
             await setDoc(doc(db, "settings", "game_info"), {
@@ -272,16 +270,28 @@
             alert("Game Schedule & Notice Board Updated!");
         };
 
+        // Guaranteed Base64 Photo Upload (Direct to Firestore Realtime)
         window.uploadGamePhoto = async () => {
-            const file = document.getElementById('photo-input').files[0];
+            const fileInput = document.getElementById('photo-input');
+            const file = fileInput.files[0];
             if (!file) return alert("Pumili muna ng larawan.");
 
-            const storageRef = ref(storage, `game_photos/${Date.now()}_${file.name}`);
-            await uploadBytes(storageRef, file);
-            const url = await getDownloadURL(storageRef);
+            if (file.size > 1048576) {
+                alert("Masyadong malaki ang file. Paki-pili ang larawan na mas mababa sa 1MB.");
+                return;
+            }
 
-            await setDoc(doc(db, "photos", `${Date.now()}`), { url, createdAt: new Date().toISOString() });
-            alert("Photo uploaded successfully!");
+            const reader = new FileReader();
+            reader.onload = async function (e) {
+                const base64Image = e.target.result;
+                await setDoc(doc(db, "photos", `${Date.now()}`), { 
+                    url: base64Image, 
+                    createdAt: new Date().toISOString() 
+                });
+                alert("Photo uploaded successfully!");
+                fileInput.value = "";
+            };
+            reader.readAsDataURL(file);
         };
 
         function renderAdminUserManagement(users) {
@@ -290,7 +300,7 @@
             container.innerHTML = "";
 
             users.forEach(u => {
-                if (u.email === SUPER_ADMIN_EMAIL) return; // Skip Super Admin in list
+                if (u.email === SUPER_ADMIN_EMAIL) return;
                 
                 let card = document.createElement('div');
                 card.style.cssText = "background:#0f172a; padding:12px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;";
@@ -316,7 +326,7 @@
         };
 
         window.warnUser = async (uid) => {
-            const reason = prompt("Enter warning message (e.g. Kulang sa bayad, Nanakit):");
+            const reason = prompt("Enter warning message:");
             if (reason) await updateDoc(doc(db, "users", uid), { warning: reason });
         };
 
@@ -333,6 +343,8 @@
             if (!email) return;
             await setDoc(doc(db, "admins", email), { addedAt: new Date().toISOString() });
             alert(`${email} is now an Admin!`);
+            document.getElementById('new-admin-email').value = "";
+            loadAdminData();
         };
 
         async function loadAdminData() {
@@ -342,7 +354,7 @@
                 if (list) {
                     list.innerHTML = "";
                     snap.forEach(d => {
-                        list.innerHTML += `<li>${d.id} <button onclick="removeAdmin('${d.id}')" style="color:#f87171; border:none; background:none; cursor:pointer;">[Remove]</button></li>`;
+                        list.innerHTML += `<li style="margin-bottom:4px;">${d.id} <button onclick="removeAdmin('${d.id}')" style="color:#f87171; border:none; background:none; cursor:pointer; font-weight:bold;">[Remove]</button></li>`;
                     });
                 }
             }
@@ -433,7 +445,7 @@
                     <p id="view-venue" style="font-size: 1.1rem; font-weight: 600;">Loading...</p>
                 </div>
                 
-                <div style="margin-top:20px; border-t:1px solid #334155; padding-top:16px;">
+                <div style="margin-top:20px; border-top:1px solid #334155; padding-top:16px;">
                     <label style="font-size: 0.8rem; color: var(--text-muted);">MAY KASAMA KA? (Max 4 Guests, Comma Separated):</label>
                     <input type="text" id="guest-names-input" placeholder="e.g. Pedro, Mark (Automatic Same Team)">
 
@@ -453,13 +465,13 @@
             </div>
         </div>
 
-        <!-- Auto Matchmaking Schedule -->
+        <!-- Realtime Auto Matchmaking Schedule -->
         <div class="card" style="margin-top:20px;">
             <h3 style="font-size:1.1rem; font-weight:700; margin-bottom:12px;">AUTOMATIC MATCHMAKING & GAME ROTATION</h3>
             <div id="generated-matches"></div>
         </div>
 
-        <!-- Roster & Gallery -->
+        <!-- Realtime Roster & Photos -->
         <div class="grid-2" style="margin-top:20px;">
             <div class="card">
                 <h3 style="font-size:1rem; font-weight:700; margin-bottom:12px;">ATTENDING PLAYERS POOL</h3>
@@ -467,8 +479,8 @@
             </div>
 
             <div class="card">
-                <h3 style="font-size:1rem; font-weight:700; margin-bottom:12px;">GAME HIGHLIGHTS & PHOTOS</h3>
-                <div id="photo-gallery" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap:10px;"></div>
+                <h3 style="font-size:1rem; font-weight:700; margin-bottom:12px;">PHOTOS</h3>
+                <div id="photo-gallery" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:12px;"></div>
             </div>
         </div>
     </div>
@@ -484,7 +496,7 @@
         </div>
 
         <!-- Super Admin Section -->
-        <div id="super-admin-section" class="card hidden mb-6" style="border-color:var(--accent-red);">
+        <div id="super-admin-section" class="card hidden mb-6" style="border-color:var(--accent-red); margin-bottom: 20px;">
             <span class="tag" style="background:var(--accent-red);">SUPER ADMIN CONTROLS</span>
             <h3 style="font-size:1rem; font-weight:700; margin-top:10px;">Manage Club Admins</h3>
             <div style="display:flex; gap:8px; margin-top:8px;">
@@ -517,10 +529,10 @@
 
             <!-- Upload Photo & Player Approval -->
             <div>
-                <div class="card mb-4">
+                <div class="card" style="margin-bottom: 20px;">
                     <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 12px;">Upload Game Photos</h3>
                     <input type="file" id="photo-input" accept="image/*">
-                    <button class="btn-main w-full mt-2" onclick="uploadGamePhoto()">Upload Photo</button>
+                    <button class="btn-main w-full" style="margin-top:8px;" onclick="uploadGamePhoto()">Upload Photo</button>
                 </div>
 
                 <div class="card">
