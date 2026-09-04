@@ -25,6 +25,9 @@
         .scrollable-container::-webkit-scrollbar-track { background: #0f172a; border-radius: 4px; }
         .scrollable-container::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
 
+        .badge-paid { background: #22c55e; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+        .badge-unpaid { background: #ef4444; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+
         @media (max-width: 768px) {
             .grid-2 { display: flex; flex-direction: column; gap: 16px; }
             .navbar { flex-direction: column; gap: 12px; align-items: flex-start; }
@@ -58,6 +61,7 @@
         const DEFAULT_GUEST_AVATAR = "https://ui-avatars.com/api/?name=Guest&background=334155&color=fff";
         let currentUserData = null;
         let isAdminUser = false;
+        let customMatchesData = {}; 
 
         window.navigateTo = (pageId) => {
             document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
@@ -141,6 +145,7 @@
                 position: document.getElementById('reg-p').value,
                 photoURL: user.photoURL || 'https://via.placeholder.com/150',
                 status: 'out',
+                isPaid: false,
                 guests: [],
                 isApproved: user.email === SUPER_ADMIN_EMAIL,
                 isBanned: false,
@@ -157,13 +162,20 @@
             const container = document.getElementById('user-profile-display');
             if (!container) return;
 
+            const paymentBadge = data.isPaid 
+                ? `<span class="badge-paid">PAID</span>` 
+                : `<span class="badge-unpaid">UNPAID</span>`;
+
             container.innerHTML = `
-                <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-                    <img src="${data.photoURL || 'https://via.placeholder.com/150'}" style="width:60px; height:60px; border-radius:50%; object-fit:cover; border:2px solid var(--accent-blue);">
-                    <div>
-                        <h3 style="font-size:1.1rem; font-weight:700; margin:0;">${data.name}</h3>
-                        <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">${data.position} | ${data.height || "N/A"}</p>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <img src="${data.photoURL || 'https://via.placeholder.com/150'}" style="width:60px; height:60px; border-radius:50%; object-fit:cover; border:2px solid var(--accent-blue);">
+                        <div>
+                            <h3 style="font-size:1.1rem; font-weight:700; margin:0;">${data.name}</h3>
+                            <p style="font-size:0.8rem; color:var(--text-muted); margin:0;">${data.position} | ${data.height || "N/A"}</p>
+                        </div>
                     </div>
+                    <div>${paymentBadge}</div>
                 </div>
                 <div style="display:grid; gap:8px;">
                     <label style="font-size:0.75rem; color:var(--text-muted);">Update Photo:</label>
@@ -227,6 +239,15 @@
                 }
             });
 
+            // Listen to Custom Match Overrides from Admins
+            onSnapshot(doc(db, "settings", "custom_matches"), (docSnap) => {
+                if (docSnap.exists()) {
+                    customMatchesData = docSnap.data() || {};
+                } else {
+                    customMatchesData = {};
+                }
+            });
+
             onSnapshot(collection(db, "photos"), (snapshot) => {
                 const gallery = document.getElementById('photo-gallery');
                 if (!gallery) return;
@@ -258,15 +279,14 @@
                     const u = docSnap.data();
                     allUsers.push(u);
 
-                    // Allow Admin and Super Admin to be listed when status === 'in'
                     const isSuperAdmin = (u.email === SUPER_ADMIN_EMAIL);
                     const isEligibleUser = (u.isApproved || isSuperAdmin) && !u.isBanned;
 
                     if (u.status === 'in' && isEligibleUser) {
-                        attendingPool.push({ uid: u.uid, name: u.name, position: u.position || 'PG', photoURL: u.photoURL || 'https://via.placeholder.com/150', isMain: true });
+                        attendingPool.push({ uid: u.uid, name: u.name, position: u.position || 'PG', photoURL: u.photoURL || 'https://via.placeholder.com/150', isPaid: u.isPaid, isMain: true });
                         if (u.guests && u.guests.length > 0) {
                             u.guests.forEach(gName => {
-                                attendingPool.push({ uid: u.uid, name: `${gName} (${u.name}'s Guest)`, position: 'GUEST', photoURL: DEFAULT_GUEST_AVATAR, isMain: false });
+                                attendingPool.push({ uid: u.uid, name: `${gName} (${u.name}'s Guest)`, position: 'GUEST', photoURL: DEFAULT_GUEST_AVATAR, isPaid: u.isPaid, isMain: false });
                             });
                         }
                     }
@@ -307,15 +327,18 @@
             });
         }
 
-        // --- MATCHMAKING ENGINE (Starts at 5 players, fills set) ---
+        // --- AUTOMATIC MATCHMAKING ENGINE WITH AUTO-FILL BORROWING & OVERRIDES ---
         function renderRosterAndMatchmaking(pool) {
             const rosterList = document.getElementById('active-roster-list');
             if (rosterList) {
                 rosterList.innerHTML = pool.length === 0 ? `<li style="color:var(--text-muted); list-style:none;">No players checked in yet.</li>` :
                     pool.map(p => `
-                        <li style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-                            <img src="${p.photoURL}" style="width:28px; height:28px; border-radius:50%; object-fit:cover;" onerror="this.src='${DEFAULT_GUEST_AVATAR}'">
-                            <span><strong>${p.name}</strong> - <span style="color:var(--text-muted);">${p.position}</span></span>
+                        <li style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <img src="${p.photoURL}" style="width:28px; height:28px; border-radius:50%; object-fit:cover;" onerror="this.src='${DEFAULT_GUEST_AVATAR}'">
+                                <span><strong>${p.name}</strong> - <span style="color:var(--text-muted);">${p.position}</span></span>
+                            </div>
+                            ${p.isPaid ? `<span class="badge-paid">PAID</span>` : `<span class="badge-unpaid">UNPAID</span>`}
                         </li>
                     `).join('');
             }
@@ -331,21 +354,41 @@
 
             let gameNumber = 1;
             let currentPool = [...pool];
+            let initialPoolForBorrowing = [...pool]; // Used for filling missing players in extra games
+
             let startTimeStr = document.getElementById('view-time').innerText;
             let baseMinutes = 19 * 60; 
-
             if (startTimeStr.includes("6")) baseMinutes = 18 * 60;
 
-            while (currentPool.length >= 5) {
-                let game10 = currentPool.slice(0, 10);
-                
-                // Fill up to 10 slots with Open Slots so match sets are complete 5v5
-                while (game10.length < 10) {
-                    game10.push({ name: `<i style="color: #64748b;">(OPEN SLOT)</i>` });
+            while (currentPool.length > 0) {
+                let currentGamePlayers = [];
+
+                if (currentPool.length >= 10) {
+                    // Normal 10 players
+                    currentGamePlayers = currentPool.slice(0, 10);
+                    currentPool = currentPool.slice(10);
+                } else {
+                    // Kulang sa 10 ang natira! Kukuha/Bubuhat ng players mula sanaunang pool (Game 1) para mabuo ang 10.
+                    currentGamePlayers = [...currentPool];
+                    let neededCount = 10 - currentGamePlayers.length;
+
+                    // Kumuha ng players mula sa simula ng pool na hindi pa kasama rito
+                    let availableForBorrow = initialPoolForBorrowing.filter(p => !currentGamePlayers.some(cp => cp.name === p.name));
+                    let borrowedPlayers = availableForBorrow.slice(0, neededCount);
+
+                    currentGamePlayers = [...currentGamePlayers, ...borrowedPlayers];
+                    currentPool = []; // Ubos na ang unassigned players
                 }
 
-                let teamA = game10.slice(0, 5);
-                let teamB = game10.slice(5, 10);
+                // Check if Admin has a custom match set override
+                let teamA = currentGamePlayers.slice(0, 5);
+                let teamB = currentGamePlayers.slice(5, 10);
+
+                const customGameKey = `game_${gameNumber}`;
+                if (customMatchesData[customGameKey]) {
+                    if (customMatchesData[customGameKey].teamA) teamA = customMatchesData[customGameKey].teamA;
+                    if (customMatchesData[customGameKey].teamB) teamB = customMatchesData[customGameKey].teamB;
+                }
 
                 let matchStartMins = baseMinutes + (gameNumber - 1) * 45;
                 let startHH = Math.floor(matchStartMins / 60);
@@ -358,26 +401,49 @@
                 card.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #334155; padding-bottom:6px;">
                         <span class="tag">GAME ${gameNumber}</span>
-                        <span style="font-weight:700; color:var(--accent-blue); font-size:0.8rem;">Est: ${timeFormatted}</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="font-weight:700; color:var(--accent-blue); font-size:0.8rem;">Est: ${timeFormatted}</span>
+                            ${isAdminUser ? `<button onclick="editGameSetRoster(${gameNumber}, '${encodeURIComponent(JSON.stringify(teamA))}', '${encodeURIComponent(JSON.stringify(teamB))}')" style="background:#2563eb; color:#fff; border:none; padding:2px 8px; border-radius:4px; font-size:0.75rem; cursor:pointer; font-weight:bold;">[Admin Edit Set]</button>` : ''}
+                        </div>
                     </div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
                         <div style="background:#1e293b; padding:8px; border-radius:6px;">
                             <p style="font-weight:800; color:var(--accent-blue); margin:0 0 4px 0; font-size:0.85rem;">TEAM A</p>
-                            <ol style="font-size:0.8rem; padding-left:14px; margin:0; line-height:1.4;">${teamA.map(p => `<li>${p.name}</li>`).join('')}</ol>
+                            <ol style="font-size:0.8rem; padding-left:14px; margin:0; line-height:1.4;">${teamA.map(p => `<li>${p.name || p}</li>`).join('')}</ol>
                         </div>
                         <div style="background:#1e293b; padding:8px; border-radius:6px;">
                             <p style="font-weight:800; color:#f87171; margin:0 0 4px 0; font-size:0.85rem;">TEAM B</p>
-                            <ol style="font-size:0.8rem; padding-left:14px; margin:0; line-height:1.4;">${teamB.map(p => `<li>${p.name}</li>`).join('')}</ol>
+                            <ol style="font-size:0.8rem; padding-left:14px; margin:0; line-height:1.4;">${teamB.map(p => `<li>${p.name || p}</li>`).join('')}</ol>
                         </div>
                     </div>
                 `;
                 matchesContainer.appendChild(card);
 
-                currentPool = currentPool.slice(10);
                 gameNumber++;
-                if (gameNumber > 5) break; 
+                if (gameNumber > 8) break; // Safeguard limit
             }
         }
+
+        // Admin Custom Edit for Match Roster
+        window.editGameSetRoster = async (gameNum, currentTeamAEnc, currentTeamBEnc) => {
+            let currentTeamA = JSON.parse(decodeURIComponent(currentTeamAEnc)).map(p => p.name || p);
+            let currentTeamB = JSON.parse(decodeURIComponent(currentTeamBEnc)).map(p => p.name || p);
+
+            const newTeamAStr = prompt(`Edit TEAM A Players for Game ${gameNum} (Comma Separated 5 Names):`, currentTeamA.join(', '));
+            if (newTeamAStr === null) return;
+
+            const newTeamBStr = prompt(`Edit TEAM B Players for Game ${gameNum} (Comma Separated 5 Names):`, currentTeamB.join(', '));
+            if (newTeamBStr === null) return;
+
+            const teamAArray = newTeamAStr.split(',').map(s => ({ name: s.trim() }));
+            const teamBArray = newTeamBStr.split(',').map(s => ({ name: s.trim() }));
+
+            await setDoc(doc(db, "settings", "custom_matches"), {
+                [`game_${gameNum}`]: { teamA: teamAArray, teamB: teamBArray }
+            }, { merge: true });
+
+            alert(`Game ${gameNum} roster saved!`);
+        };
 
         window.setAttendance = async (status) => {
             const u = auth.currentUser;
@@ -482,15 +548,21 @@
                 card.style.cssText = "background:#0f172a; padding:10px; border-radius:8px; margin-bottom:8px; border:1px solid var(--card-border);";
                 card.innerHTML = `
                     <div style="display:flex; flex-direction:column; gap:8px;">
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <img src="${u.photoURL || 'https://via.placeholder.com/150'}" style="width:36px; height:36px; border-radius:50%; object-fit:cover;">
+                        <div style="display:flex; align-items:center; justify-content:space-between;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <img src="${u.photoURL || 'https://via.placeholder.com/150'}" style="width:36px; height:36px; border-radius:50%; object-fit:cover;">
+                                <div>
+                                    <p style="font-weight:700; margin:0; font-size:0.85rem;">${u.name} <span style="font-size:0.7rem; color:var(--text-muted);">(${u.email})</span></p>
+                                    <p style="font-size:0.75rem; color:var(--text-muted); margin:0;">${u.position} | ${u.height || "N/A"} | Status: <strong style="color:${u.status === 'in' ? '#4ade80' : '#f87171'};">${u.status ? u.status.toUpperCase() : 'OUT'}</strong></p>
+                                </div>
+                            </div>
                             <div>
-                                <p style="font-weight:700; margin:0; font-size:0.85rem;">${u.name} <span style="font-size:0.7rem; color:var(--text-muted);">(${u.email})</span></p>
-                                <p style="font-size:0.75rem; color:var(--text-muted); margin:0;">${u.position} | ${u.height || "N/A"} | Status: <strong style="color:${u.status === 'in' ? '#4ade80' : '#f87171'};">${u.status ? u.status.toUpperCase() : 'OUT'}</strong></p>
+                                ${u.isPaid ? `<span class="badge-paid">PAID</span>` : `<span class="badge-unpaid">UNPAID</span>`}
                             </div>
                         </div>
                         <div style="display:flex; gap:4px; flex-wrap:wrap;">
                             ${!u.isApproved ? `<button class="btn-main" style="padding:3px 6px; font-size:0.7rem;" onclick="approveUser('${u.uid}')">Approve</button>` : ''}
+                            <button class="btn-outline" style="padding:3px 6px; font-size:0.7rem; border-color:${u.isPaid ? '#ef4444' : '#22c55e'}; color:${u.isPaid ? '#ef4444' : '#22c55e'};" onclick="togglePaymentStatus('${u.uid}', ${!u.isPaid})">${u.isPaid ? 'Set Unpaid' : 'Set Paid'}</button>
                             <button class="btn-outline" style="padding:3px 6px; font-size:0.7rem;" onclick="adminEditUserProfile('${u.uid}', '${u.name}', '${u.height}', '${u.position}')">Edit</button>
                             <button class="btn-outline" style="padding:3px 6px; font-size:0.7rem; border-color:${u.status === 'in' ? '#f87171' : '#4ade80'}; color:${u.status === 'in' ? '#f87171' : '#4ade80'};" onclick="toggleUserAttendance('${u.uid}', '${u.status === 'in' ? 'out' : 'in'}')">${u.status === 'in' ? 'Cancel' : 'Force Play'}</button>
                             <button class="btn-outline" style="padding:3px 6px; font-size:0.7rem;" onclick="warnUser('${u.uid}')">Warn</button>
@@ -501,6 +573,10 @@
                 container.appendChild(card);
             });
         }
+
+        window.togglePaymentStatus = async (uid, newPaidState) => {
+            await updateDoc(doc(db, "users", uid), { isPaid: newPaidState });
+        };
 
         window.adminEditUserProfile = async (uid, currentName, currentHeight, currentPosition) => {
             const newName = prompt("Edit Player Name:", currentName);
@@ -524,7 +600,7 @@
         window.updateScheduleAndNotice = async (e) => {
             e.preventDefault();
             
-            if (!confirm("Updating the schedule will reset the active roster and player attendance. Do you want to proceed?")) {
+            if (!confirm("Updating the schedule will reset the active roster, attendance, payment statuses, and custom matches. Proceed?")) {
                 return;
             }
 
@@ -539,18 +615,23 @@
                     announcement: document.getElementById('set-msg').value
                 });
 
+                // Clear Custom Matches
+                const customMatchesRef = doc(db, "settings", "custom_matches");
+                batch.delete(customMatchesRef);
+
                 const usersSnap = await getDocs(collection(db, "users"));
                 usersSnap.forEach((userDoc) => {
                     const userRef = doc(db, "users", userDoc.id);
                     batch.update(userRef, {
                         status: 'out',
+                        isPaid: false,
                         guests: []
                     });
                 });
 
                 await batch.commit();
 
-                alert("Game Schedule updated! Player attendance pool and matchmaking have been reset for the new game.");
+                alert("Game Schedule updated! Roster, matchmaking, and payment status have been reset.");
             } catch (err) {
                 alert("Error updating schedule: " + err.message);
             }
@@ -763,7 +844,7 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <div>
                 <h1 style="font-size: 1.2rem; font-weight: 700; margin:0;">Admin Management Portal</h1>
-                <p style="font-size: 0.75rem; color: var(--text-muted); margin:0;">Manage schedule, player controls, and support inbox.</p>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin:0;">Manage schedule, player controls, payments, and support inbox.</p>
             </div>
             <button class="btn-outline" style="padding:4px 8px;" onclick="window.navigateTo('dashboard-page')">← Dashboard</button>
         </div>
@@ -809,7 +890,7 @@
                 </div>
 
                 <div class="card" style="margin-bottom: 16px;">
-                    <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px;">Player Approvals & Controls</h3>
+                    <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 8px;">Player Approvals, Payments & Controls</h3>
                     <div id="admin-user-list" class="scrollable-container"></div>
                 </div>
 
