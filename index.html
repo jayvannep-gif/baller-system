@@ -3,442 +3,113 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Basketball Club</title>
+<title>Baller Club</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-:root{--bg:#0b1120;--card:#1e293b;--line:#334155;--deep:#0f172a;--text:#f8fafc;--muted:#94a3b8;--blue:#2563eb;--blue-h:#1d4ed8;--red:#dc2626}
-*{box-sizing:border-box;margin:0;padding:0;font-family:'Inter',-apple-system,"Segoe UI",Roboto,sans-serif}
-body{background:var(--bg);color:var(--text);min-height:100vh}
-.page{max-width:900px;margin:0 auto;padding:12px}
-.hidden{display:none!important}
-.center{margin-top:12vh;text-align:center}
-.hero,.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px}
-.card{padding:16px;box-shadow:0 4px 6px -1px rgba(0,0,0,.1)}
-.card.white{background:#fff;color:var(--deep)}
-.sub{background:var(--deep);border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px}
-.logo{font-size:2.2rem;font-weight:800;letter-spacing:-.025em;margin-bottom:8px}.logo span{color:var(--blue)}
-.muted{color:var(--muted)}.sm{font-size:.8rem}.xs{font-size:.72rem}
-input,select,textarea{width:100%;padding:10px 12px;margin:6px 0 12px;background:var(--deep);border:1px solid var(--line);border-radius:8px;color:var(--text);font-size:.95rem;outline:none}
-input:focus,select:focus,textarea:focus{border-color:var(--blue)}
-label{font-size:.75rem;color:var(--muted)}
-button{cursor:pointer}
-.btn{background:var(--blue);color:#fff;font-weight:600;padding:8px 14px;border-radius:8px;border:none}
-.btn:hover{background:var(--blue-h)}
-.btn-o{background:transparent;color:var(--text);border:1px solid var(--line);font-weight:600;padding:8px 14px;border-radius:8px}
-.btn-o:hover{background:var(--line)}
-.btn.s,.btn-o.s{padding:3px 8px;font-size:.72rem}
-.ok{color:#4ade80;border-color:#22c55e}.bad{color:#f87171;border-color:#ef4444}.warn{color:#f59e0b;border-color:#f59e0b}
-.btn-o.ok:hover,.btn-o.bad:hover,.btn-o.warn:hover{background:var(--line)}
-.row{display:flex;gap:8px;align-items:center}.between{justify-content:space-between}.wrap{flex-wrap:wrap}.col{display:flex;flex-direction:column;gap:8px}
-.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
-.gap{margin-top:16px}
-.tag{display:inline-block;background:var(--line);font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.05em}
-.scroll{max-height:350px;overflow-y:auto;padding-right:4px}
-.scroll::-webkit-scrollbar{width:6px}.scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
-.paid,.unpaid,.na{color:#fff;padding:2px 6px;border-radius:4px;font-size:.7rem;font-weight:700}
-.paid{background:#22c55e}.unpaid{background:#ef4444}.na{background:#64748b}
-.av{border-radius:50%;object-fit:cover}
-.teams{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.team{background:var(--card);padding:8px;border-radius:6px}
-.team ol{padding-left:16px;font-size:.8rem;line-height:1.5}
-.pos{font-size:.72rem;color:#60a5fa;font-weight:600}
-.alert{background:rgba(239,68,68,.15);border:1px solid #ef4444;border-radius:6px;padding:10px;margin-bottom:12px;font-size:.8rem;color:#fca5a5}
-.photo{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
-.photo img{width:100%;height:130px;object-fit:cover;display:block}
-.photo .acts{position:absolute;top:6px;right:6px;display:flex;gap:4px}
-.photo a{background:rgba(37,99,235,.9);color:#fff;text-decoration:none;border-radius:4px;padding:3px 6px;font-size:.7rem;font-weight:700}
-.reply{font-size:.78rem;background:var(--card);padding:4px 8px;border-radius:4px;margin-top:4px}
-@media(max-width:600px){.teams{grid-template-columns:1fr}.card{padding:12px}}
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div id="login-page" class="page center"><div class="hero">
-  <h1 class="logo">BASKETBALL<span>CLUB</span></h1>
-  <p class="muted" style="margin-bottom:20px">Tuesday Night League (6PM - 10PM)</p>
-  <button class="btn" style="width:100%" data-act="login">Sign in with Google</button>
+  <svg class="ball" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path d="M4 50h92M50 4v92M17 17c20 20 20 46 0 66M83 17c-20 20-20 46 0 66"/></svg>
+  <h1 class="logo">BALLER<span>CLUB</span></h1>
+  <p class="muted">Tuesday Night Run, 6PM to 10PM</p>
+  <button class="btn big" data-act="login">Sign in with Google</button>
 </div></div>
 
 <div id="pending-page" class="page center hidden"><div class="hero">
-  <h2 style="color:#facc15;margin-bottom:8px">Waiting for approval</h2>
-  <p class="muted sm" style="margin-bottom:20px">Your profile is registered. An admin needs to approve it before you can join games.</p>
+  <h2 class="display">Waiting for approval</h2>
+  <p class="muted" style="margin:8px 0 20px">Your profile is in. An admin needs to approve you before you can join games.</p>
   <button class="btn-o" data-act="logout">Sign out</button>
 </div></div>
 
 <div id="signup-page" class="page center hidden"><div class="card" style="text-align:left">
-  <h2 style="margin-bottom:4px">Set up your player profile</h2>
-  <p class="muted sm" style="margin-bottom:16px">Tell us a bit about you to get started.</p>
+  <h2 class="display">Build your player card</h2>
+  <p class="muted sm" style="margin-bottom:16px">This is what the club sees on the roster.</p>
   <form id="signup-form">
     <label>Full name</label><input id="reg-name" required>
     <label>Height (ft'in")</label><input id="reg-h" placeholder="5'9&quot;" required>
     <label>Primary position</label>
     <select id="reg-p" required><option value="">Select position...</option><option>Point Guard (PG)</option><option>Shooting Guard (SG)</option><option>Small Forward (SF)</option><option>Power Forward (PF)</option><option>Center (C)</option></select>
-    <button class="btn" style="width:100%" type="submit">Save profile</button>
+    <button class="btn big" type="submit">Join the club</button>
   </form>
 </div></div>
 
 <div id="dashboard-page" class="page hidden">
-  <nav class="row between" style="margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--line)">
-    <div><h2 style="font-size:1.1rem">Tuesday Basketball Club</h2><p class="muted xs">Matchmaking & schedule</p></div>
-    <div class="row"><button id="admin-nav" class="btn-o hidden" data-act="nav" data-id="admin-page">Admin panel</button><button class="btn-o bad" data-act="logout">Sign out</button></div>
+  <nav class="nav">
+    <div><h2 class="display">Baller Club</h2><p class="muted xs">Tuesday night run</p></div>
+    <div class="row"><button id="admin-nav" class="btn-o hidden" data-act="nav" data-id="admin-page">Admin</button><button class="btn-o bad" data-act="logout">Sign out</button></div>
   </nav>
-  <div class="grid2">
+
+  <section class="grid2">
     <div class="card" id="profile"></div>
     <div class="card">
-      <span class="tag">NEXT GAME</span>
-      <div class="sm" style="margin:8px 0">
-        <p class="muted">Date: <strong id="v-date" style="color:#fff">TBA</strong></p>
-        <p class="muted">Time: <strong id="v-time" style="color:#fff">TBA</strong></p>
-        <p class="muted">Venue: <strong id="v-venue" style="color:#fff">TBA</strong></p>
-      </div>
-      <div style="border-top:1px solid var(--line);padding-top:10px">
-        <label>Guests (max 4, comma separated)</label>
-        <input id="guests" placeholder="Mark, Alex">
-        <div class="row"><button class="btn" style="flex:1" data-act="attend" data-id="in">Play</button><button class="btn-o bad" style="flex:1" data-act="attend" data-id="out">Cancel</button></div>
-      </div>
+      <h3 class="display">Next game</h3>
+      <dl class="info">
+        <dt>Date</dt><dd id="v-date">TBA</dd>
+        <dt>Time</dt><dd id="v-time">TBA</dd>
+        <dt>Court</dt><dd id="v-venue">TBA</dd>
+      </dl>
+      <label>Guests (max 4, comma separated)</label>
+      <input id="guests" placeholder="Mark, Alex">
+      <div class="row"><button class="btn grow" data-act="attend" data-id="in">I'm playing</button><button class="btn-o bad grow" data-act="attend" data-id="out">Can't make it</button></div>
     </div>
-  </div>
-  <div class="card white gap"><span class="tag" style="background:var(--deep);color:#fff">NOTICE BOARD</span><p id="v-notice" class="sm" style="margin-top:8px;color:#334155">No announcements posted.</p></div>
-  <div class="card gap"><h3 style="margin-bottom:8px">Matchmaking & rotation</h3><div id="matches"></div></div>
-  <div class="grid2 gap">
-    <div class="card"><h3 style="margin-bottom:8px">Players attending</h3><ul id="roster" class="scroll" style="list-style:none;font-size:.85rem"></ul></div>
-    <div class="card"><h3 style="margin-bottom:8px">Photos</h3><div id="gallery" class="scroll" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px"></div></div>
-  </div>
-  <div class="card gap">
-    <h3 style="margin-bottom:8px">Message the admins</h3>
-    <div id="my-msgs" class="scroll" style="margin-bottom:8px"></div>
+  </section>
+
+  <section class="notice gap"><h3 class="display">Notice board</h3><p id="v-notice">No announcements posted.</p></section>
+
+  <section class="card gap">
+    <div class="row between wrap"><h3 class="display">Games and rotation</h3>
+      <div class="row"><span id="swap-hint" class="muted xs hidden">Tap a player, then tap who to swap with.</span><button id="auto-btn" class="btn-o s hidden" data-act="resetAuto">Back to auto</button></div></div>
+    <div id="matches"></div>
+  </section>
+
+  <section class="grid2 gap">
+    <div class="card"><h3 class="display">Who's in</h3><ul id="roster" class="scroll list"></ul></div>
+    <div class="card"><h3 class="display">Most games this year</h3><ol id="board" class="list board"></ol></div>
+  </section>
+
+  <section class="card gap"><h3 class="display">Photos</h3><div id="gallery" class="scroll gallery"></div></section>
+
+  <section class="card gap">
+    <h3 class="display">Message the admins</h3>
+    <div id="my-msgs" class="scroll" style="margin:8px 0"></div>
     <div class="row"><input id="msg-in" placeholder="Type a message..." style="margin:0"><button class="btn" data-act="sendMsg">Send</button></div>
-  </div>
+  </section>
 </div>
 
 <div id="admin-page" class="page hidden">
-  <div class="row between" style="margin-bottom:16px">
-    <div><h1 style="font-size:1.2rem">Admin portal</h1><p class="muted xs">Schedule, players, payments and inbox.</p></div>
-    <button class="btn-o" data-act="nav" data-id="dashboard-page">&larr; Dashboard</button>
-  </div>
-  <div id="super" class="card hidden" style="border-color:var(--red);margin-bottom:16px">
-    <span class="tag" style="background:var(--red)">SUPER ADMIN</span>
-    <h3 style="font-size:.9rem;margin:6px 0">Club admins</h3>
-    <div class="row"><input id="new-admin" type="email" placeholder="admin@email.com" style="margin:0"><button class="btn" data-act="addAdmin">Add</button></div>
+  <nav class="nav">
+    <div><h1 class="display">Admin</h1><p class="muted xs">Schedule, players, payments and inbox</p></div>
+    <button class="btn-o" data-act="nav" data-id="dashboard-page">Back to dashboard</button>
+  </nav>
+  <div id="super" class="card hidden" style="border-color:var(--ball);margin-bottom:16px">
+    <h3 class="display">Club admins</h3>
+    <div class="row" style="margin-top:8px"><input id="new-admin" type="email" placeholder="admin@email.com" style="margin:0"><button class="btn" data-act="addAdmin">Add</button></div>
     <ul id="admins" class="sm" style="margin-top:8px;padding-left:16px"></ul>
   </div>
   <div class="grid2">
     <div class="card">
-      <h3 style="margin-bottom:8px">Schedule & location</h3>
+      <h3 class="display">Schedule and court</h3>
       <form id="sched-form">
-        <label>Date</label><input id="s-date" placeholder="Tuesday, Sept 8">
-        <label>Display time</label><input id="s-time" placeholder="6:00 PM - 10:00 PM">
+        <label>Game date</label><input id="s-key" type="date">
+        <label>Date shown to players</label><input id="s-date" placeholder="Tuesday, Sept 8">
+        <label>Time shown to players</label><input id="s-time" placeholder="6:00 PM - 10:00 PM">
         <label>First game starts</label><input id="s-start" type="time" value="18:00">
         <label>Court</label><input id="s-venue" placeholder="Central Community Center">
         <label>Notice</label><textarea id="s-msg" rows="3"></textarea>
-        <button class="btn" style="width:100%" type="submit">Save and reset attendance</button>
+        <button class="btn big" type="submit">Save and reset attendance</button>
       </form>
     </div>
     <div class="col">
-      <div class="card"><h3 style="margin-bottom:8px">Upload game photo</h3><input id="photo-in" type="file" accept="image/*"><button class="btn" style="width:100%" data-act="upload">Upload photo</button></div>
-      <div class="card"><h3 style="margin-bottom:8px">Players</h3><div id="admin-users" class="scroll"></div></div>
-      <div class="card"><h3 style="margin-bottom:8px">Inbox</h3><div id="admin-msgs" class="scroll"></div></div>
+      <div class="card"><h3 class="display">Upload game photo</h3><input id="photo-in" type="file" accept="image/*"><button class="btn big" data-act="upload">Upload photo</button></div>
+      <div class="card"><h3 class="display">Players</h3><div id="admin-users" class="scroll"></div></div>
+      <div class="card"><h3 class="display">Inbox</h3><div id="admin-msgs" class="scroll"></div></div>
     </div>
   </div>
 </div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, getDocs, collection, updateDoc, deleteDoc, onSnapshot, addDoc, writeBatch, query, where, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-const app = initializeApp({
-  apiKey: "AIzaSyCPoQ-8anpEqtozvXlJCoaxl3hOv4E5uIg",
-  authDomain: "ballerapp-61517.firebaseapp.com",
-  projectId: "ballerapp-61517",
-  storageBucket: "ballerapp-61517.firebasestorage.app",
-  messagingSenderId: "653164120828",
-  appId: "1:653164120828:web:a1b24c6082b14adbfb6579"
-});
-const auth = getAuth(app), db = getFirestore(app);
-const SUPER = "jayvannep@gmail.com";
-const GUEST = "https://ui-avatars.com/api/?name=Guest&background=334155&color=fff";
-const NOPHOTO = "https://ui-avatars.com/api/?name=P&background=334155&color=fff";
-const $ = id => document.getElementById(id);
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-
-let uid = null, isAdmin = false, unsubs = [];
-let users = [], custom = {}, info = {}, photos = [], msgs = [], pool = [], games = [];
-let profileKey = "", formFilled = false;
-
-const go = id => { document.querySelectorAll(".page").forEach(p => p.classList.add("hidden")); $(id).classList.remove("hidden"); };
-const stop = () => { unsubs.forEach(u => u()); unsubs = []; };
-const me = () => users.find(u => u.uid === uid);
-const abbr = p => !p ? "[N/A]" : p === "GUEST" ? "[GUEST]" : `[${(p.match(/\(([^)]+)\)/) || [0, p])[1]}]`;
-const badge = u => u.status !== "in" ? `<span class="na">N/A</span>` : u.isPaid ? `<span class="paid">PAID</span>` : `<span class="unpaid">UNPAID</span>`;
-
-function shrink(file, max, q) {
-  return new Promise((res, rej) => {
-    const img = new Image(), url = URL.createObjectURL(file);
-    img.onload = () => {
-      const s = Math.min(1, max / Math.max(img.width, img.height));
-      const c = document.createElement("canvas");
-      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
-      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg", q));
-    };
-    img.onerror = () => rej(new Error("Could not read that image."));
-    img.src = url;
-  });
-}
-
-/* ---------- auth ---------- */
-onAuthStateChanged(auth, async user => {
-  stop(); isAdmin = false; users = []; formFilled = false; profileKey = "";
-  if (!user) { uid = null; go("login-page"); return; }
-  uid = user.uid;
-  try {
-    const snap = await getDoc(doc(db, "users", user.uid));
-    if (!snap.exists()) { $("reg-name").value = user.displayName || ""; go("signup-page"); return; }
-    const d = snap.data();
-    if (d.isBanned) { alert("Account restricted: " + (d.banReason || "Violated club policies.")); signOut(auth); return; }
-    if (user.email === SUPER) isAdmin = true;
-    else isAdmin = (await getDoc(doc(db, "admins", user.email))).exists();
-    if (!d.isApproved && !isAdmin) { go("pending-page"); return; }
-    $("admin-nav").classList.toggle("hidden", !isAdmin);
-    $("super").classList.toggle("hidden", user.email !== SUPER);
-    go("dashboard-page");
-    listen(user); if (user.email === SUPER) loadAdmins();
-  } catch (e) { alert("Could not load your account: " + e.message); }
-});
-
-/* ---------- listeners (started once per login) ---------- */
-function listen(user) {
-  unsubs.push(onSnapshot(doc(db, "settings", "game_info"), s => {
-    info = s.data() || {};
-    $("v-date").textContent = info.date || "TBA"; $("v-time").textContent = info.time || "TBA";
-    $("v-venue").textContent = info.venue || "TBA"; $("v-notice").textContent = info.announcement || "No announcements posted.";
-    if (isAdmin && !formFilled) { formFilled = true; $("s-date").value = info.date || ""; $("s-time").value = info.time || ""; $("s-venue").value = info.venue || ""; $("s-msg").value = info.announcement || ""; if (info.startMinutes != null) $("s-start").value = hhmm(info.startMinutes); }
-    renderMatches();
-  }));
-  unsubs.push(onSnapshot(doc(db, "settings", "custom_matches"), s => { custom = s.data() || {}; renderMatches(); }));
-  unsubs.push(onSnapshot(collection(db, "photos"), s => { photos = s.docs.map(d => ({ id: d.id, ...d.data() })); renderGallery(); }));
-  unsubs.push(onSnapshot(collection(db, "users"), s => {
-    users = s.docs.map(d => d.data());
-    pool = buildPool(); renderProfile(); renderRoster(); renderMatches(); if (isAdmin) renderAdminUsers();
-  }));
-  const q = isAdmin ? collection(db, "messages") : query(collection(db, "messages"), where("senderUid", "==", user.uid));
-  unsubs.push(onSnapshot(q, s => { msgs = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || "")); renderMsgs(); }));
-}
-const hhmm = m => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-
-/* ---------- pool & matches ---------- */
-function buildPool() {
-  const p = [];
-  users.filter(u => u.status === "in" && (u.isApproved || u.email === SUPER) && !u.isBanned)
-    .sort((a, b) => (a.checkedInAt || 0) - (b.checkedInAt || 0) || String(a.name).localeCompare(String(b.name)))
-    .forEach(u => {
-      p.push({ id: u.uid, name: u.name, pos: u.position || "", photo: u.photoURL, paid: u.isPaid });
-      (u.guests || []).forEach((g, i) => p.push({ id: `${u.uid}:g${i}`, name: `${g} (${u.name}'s guest)`, pos: "GUEST", photo: GUEST, paid: u.isPaid }));
-    });
-  return p;
-}
-
-function renderRoster() {
-  $("roster").innerHTML = !pool.length ? `<li class="muted">No players checked in yet.</li>` : pool.map(p => `
-    <li class="row between" style="margin-bottom:6px"><div class="row"><img class="av" src="${esc(p.photo || NOPHOTO)}" width="28" height="28" alt=""><span><strong>${esc(p.name)}</strong> <span class="muted">${esc(p.pos)}</span></span></div>
-    ${p.paid ? `<span class="paid">PAID</span>` : `<span class="unpaid">UNPAID</span>`}</li>`).join("");
-}
-
-function renderMatches() {
-  const box = $("matches"); games = [];
-  if (pool.length < 5) { box.innerHTML = `<p class="muted sm">Waiting for at least 5 players. Currently ${pool.length}.</p>`; return; }
-  const byId = Object.fromEntries(pool.map(p => [p.id, p]));
-  const base = info.startMinutes ?? 18 * 60;
-  let rest = [...pool], n = 1, html = "";
-  while (rest.length && n <= 8) {
-    let g = rest.slice(0, 10); rest = rest.slice(10);
-    if (g.length < 10) g = g.concat(pool.filter(p => !g.includes(p)).slice(0, 10 - g.length));
-    let A = g.slice(0, 5), B = g.slice(5, 10);
-    const c = custom[`game_${n}`];
-    if (c) { A = (c.teamA || []).map(i => byId[i]).filter(Boolean); B = (c.teamB || []).map(i => byId[i]).filter(Boolean); }
-    games.push({ A, B });
-    const m = base + (n - 1) * 45, h = Math.floor(m / 60) % 24;
-    const t = `${h % 12 || 12}:${String(m % 60).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`;
-    const li = p => `<li><strong>${esc(p.name)}</strong> <span class="pos">${esc(abbr(p.pos))}</span></li>`;
-    html += `<div class="sub"><div class="row between" style="border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:8px">
-      <span class="tag">GAME ${n}</span><div class="row"><span class="sm" style="color:var(--blue);font-weight:700">Est. ${t}</span>
-      ${isAdmin ? `<button class="btn s" data-act="editSet" data-id="${n}">Edit teams</button>` : ""}</div></div>
-      <div class="teams"><div class="team"><p class="sm" style="color:#60a5fa;font-weight:800">TEAM A</p><ol>${A.map(li).join("")}</ol></div>
-      <div class="team"><p class="sm" style="color:#f87171;font-weight:800">TEAM B</p><ol>${B.map(li).join("")}</ol></div></div></div>`;
-    n++;
-  }
-  box.innerHTML = html;
-}
-
-/* ---------- other renders ---------- */
-function renderProfile() {
-  const d = me(); if (!d) return;
-  const key = JSON.stringify([d.name, d.height, d.position, d.photoURL, d.status, d.isPaid, d.warning, isAdmin]);
-  if (key === profileKey) return; profileKey = key;
-  const positions = ["Point Guard (PG)", "Shooting Guard (SG)", "Small Forward (SF)", "Power Forward (PF)", "Center (C)"];
-  $("profile").innerHTML = `
-    ${d.warning ? `<div class="alert"><strong>Account warning</strong><br>${esc(d.warning)}</div>` : ""}
-    <div class="row between" style="margin-bottom:12px"><div class="row"><img class="av" src="${esc(d.photoURL || NOPHOTO)}" width="55" height="55" alt="" style="border:2px solid var(--blue)">
-      <div><h3 style="font-size:1.05rem">${esc(d.name)}</h3><p class="muted sm">${esc(d.position)} | ${esc(d.height || "N/A")}</p></div></div>${badge(d)}</div>
-    ${isAdmin && d.status === "in" ? `<button class="btn-o s ${d.isPaid ? "bad" : "ok"}" data-act="selfPay">${d.isPaid ? "Mark myself unpaid" : "Mark myself paid"}</button>` : ""}
-    <div style="margin-top:8px"><label>Update photo</label><input type="file" id="self-photo" accept="image/*">
-    <label>Height (ft'in")</label><input id="self-h" value="${esc(d.height || "")}">
-    <label>Position</label><select id="self-p">${positions.map(p => `<option ${p === d.position ? "selected" : ""}>${p}</option>`).join("")}</select>
-    <button class="btn" data-act="saveProfile">Save my profile</button></div>`;
-}
-
-function renderGallery() {
-  $("gallery").innerHTML = photos.map(p => `<div class="photo"><img src="${esc(p.url)}" alt="Game photo">
-    <div class="acts"><a href="${esc(p.url)}" download="photo.jpg">Download</a>${isAdmin ? `<button class="btn s" style="background:#dc2626" data-act="delPhoto" data-id="${esc(p.id)}">Delete</button>` : ""}</div></div>`).join("");
-}
-
-function renderMsgs() {
-  const replies = m => (m.replies || []).map(r => `<div class="reply"><strong>${esc(r.sender)}:</strong> ${esc(r.text)}</div>`).join("");
-  $("my-msgs").innerHTML = msgs.filter(m => m.senderUid === uid).map(m => `<div class="sub sm"><div class="row between"><span><strong>You:</strong> ${esc(m.text)}</span>
-    <button class="btn-o s bad" data-act="delMsg" data-id="${esc(m.id)}">Delete</button></div>${replies(m)}</div>`).join("");
-  if (!isAdmin) return;
-  const open = document.activeElement && document.activeElement.id;
-  $("admin-msgs").innerHTML = msgs.map(m => `<div class="sub"><div class="row between"><p class="sm" style="color:var(--blue);font-weight:700">${esc(m.senderName)} (${esc(m.senderEmail)})</p>
-    <button class="btn-o s bad" data-act="delMsg" data-id="${esc(m.id)}">Delete</button></div><p class="sm" style="margin:6px 0">${esc(m.text)}</p>${replies(m)}
-    <div class="row" style="margin-top:8px"><input id="reply-${esc(m.id)}" placeholder="Type reply..." style="margin:0;padding:5px 8px"><button class="btn s" data-act="reply" data-id="${esc(m.id)}">Reply</button></div></div>`).join("");
-  if (open && $(open)) $(open).focus();
-}
-
-function renderAdminUsers() {
-  $("admin-users").innerHTML = users.filter(u => u.email !== SUPER).map(u => `<div class="sub"><div class="row between" style="margin-bottom:8px">
-    <div class="row"><img class="av" src="${esc(u.photoURL || NOPHOTO)}" width="36" height="36" alt="">
-    <div><p class="sm" style="font-weight:700">${esc(u.name)} <span class="muted xs">(${esc(u.email)})</span></p>
-    <p class="muted xs">${esc(u.position)} | ${esc(u.height || "N/A")} | <strong style="color:${u.status === "in" ? "#4ade80" : "#f87171"}">${u.status === "in" ? "IN" : "OUT"}</strong></p></div></div>${badge(u)}</div>
-    <div class="row wrap" style="gap:4px">
-    ${!u.isApproved ? `<button class="btn s" data-act="approve" data-id="${esc(u.uid)}">Approve</button>` : ""}
-    ${u.status === "in" ? `<button class="btn-o s ${u.isPaid ? "bad" : "ok"}" data-act="pay" data-id="${esc(u.uid)}">${u.isPaid ? "Set unpaid" : "Set paid"}</button>` : ""}
-    <button class="btn-o s" data-act="editUser" data-id="${esc(u.uid)}">Edit</button>
-    <button class="btn-o s ${u.status === "in" ? "bad" : "ok"}" data-act="force" data-id="${esc(u.uid)}">${u.status === "in" ? "Cancel" : "Force play"}</button>
-    <button class="btn-o s" data-act="warn" data-id="${esc(u.uid)}">Warn</button>
-    ${u.warning ? `<button class="btn-o s warn" data-act="clearWarn" data-id="${esc(u.uid)}">Clear warning</button>` : ""}
-    <button class="btn-o s bad" data-act="ban" data-id="${esc(u.uid)}">${u.isBanned ? "Unblock" : "Block"}</button></div></div>`).join("");
-}
-
-async function loadAdmins() {
-  const s = await getDocs(collection(db, "admins"));
-  $("admins").innerHTML = s.docs.map(d => `<li style="margin-bottom:4px">${esc(d.id)} <button class="btn-o s bad" data-act="rmAdmin" data-id="${esc(d.id)}">Remove</button></li>`).join("");
-}
-
-/* ---------- actions ---------- */
-const upd = (id, data) => updateDoc(doc(db, "users", id), data);
-const byUid = id => users.find(u => u.uid === id);
-const A = {
-  login: () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e => alert("Login failed: " + e.message)),
-  logout: () => signOut(auth),
-  nav: id => go(id),
-  attend: async s => {
-    let guests = [];
-    if (s === "in") {
-      guests = $("guests").value.split(",").map(x => x.trim()).filter(Boolean);
-      if (guests.length > 4) return alert("Maximum of 4 guests per player.");
-    }
-    await upd(uid, { status: s, guests, checkedInAt: s === "in" ? Date.now() : 0 });
-  },
-  selfPay: () => upd(uid, { isPaid: !me().isPaid }),
-  saveProfile: async () => {
-    const data = { height: $("self-h").value.trim(), position: $("self-p").value };
-    const f = $("self-photo").files[0];
-    try { if (f) data.photoURL = await shrink(f, 256, .8); await upd(uid, data); profileKey = ""; renderProfile(); alert("Profile updated."); }
-    catch (e) { alert(e.message); }
-  },
-  sendMsg: async () => {
-    const text = $("msg-in").value.trim(); if (!text) return;
-    const u = auth.currentUser;
-    await addDoc(collection(db, "messages"), { senderUid: uid, senderName: me()?.name || u.displayName || "Player", senderEmail: u.email, text, replies: [], createdAt: new Date().toISOString() });
-    $("msg-in").value = "";
-  },
-  delMsg: async id => { if (confirm("Delete this message?")) await deleteDoc(doc(db, "messages", id)); },
-  reply: async id => {
-    const t = $("reply-" + id).value.trim(); if (!t) return;
-    await updateDoc(doc(db, "messages", id), { replies: arrayUnion({ sender: auth.currentUser.email === SUPER ? "Super Admin" : "Admin", text: t, createdAt: new Date().toISOString() }) });
-  },
-  approve: id => upd(id, { isApproved: true }),
-  pay: id => upd(id, { isPaid: !byUid(id).isPaid }),
-  force: id => upd(id, { status: byUid(id).status === "in" ? "out" : "in", guests: [], checkedInAt: byUid(id).status === "in" ? 0 : Date.now() }),
-  warn: async id => { const r = prompt("Warning reason:"); if (r) await upd(id, { warning: r }); },
-  clearWarn: id => upd(id, { warning: "" }),
-  ban: async id => {
-    const u = byUid(id), ban = !u.isBanned;
-    await upd(id, { isBanned: ban, banReason: ban ? (prompt("Reason for block:") || "Rule violation") : "" });
-  },
-  editUser: async id => {
-    const u = byUid(id);
-    const name = prompt("Player name:", u.name); if (name === null) return;
-    const height = prompt("Height (ft'in\"):", u.height || ""); if (height === null) return;
-    const position = prompt("Position (e.g. Point Guard (PG)):", u.position || ""); if (position === null) return;
-    await upd(id, { name: name.trim() || u.name, height, position });
-  },
-  editSet: async n => {
-    const g = games[n - 1]; if (!g) return;
-    const list = pool.map((p, i) => `${i + 1}. ${p.name} ${abbr(p.pos)}`).join("\n");
-    const ask = (label, cur) => prompt(`GAME ${n}\n${list}\n\n${label} - enter player numbers, comma separated:`, cur.map(p => pool.indexOf(p) + 1).join(", "));
-    const a = ask("TEAM A", g.A); if (a === null) return;
-    const b = ask("TEAM B", g.B); if (b === null) return;
-    const parse = s => s.split(",").map(x => parseInt(x, 10)).filter(x => !isNaN(x));
-    const ia = parse(a), ib = parse(b), all = [...ia, ...ib];
-    if (all.some(i => i < 1 || i > pool.length)) return alert("One of those numbers isn't in the list.");
-    if (new Set(all).size !== all.length) return alert("A player can only be on one team.");
-    await setDoc(doc(db, "settings", "custom_matches"), { [`game_${n}`]: { teamA: ia.map(i => pool[i - 1].id), teamB: ib.map(i => pool[i - 1].id) } }, { merge: true });
-  },
-  upload: async () => {
-    const f = $("photo-in").files[0]; if (!f) return alert("Select an image first.");
-    try { await setDoc(doc(db, "photos", String(Date.now())), { url: await shrink(f, 1000, .7), createdAt: new Date().toISOString() }); $("photo-in").value = ""; }
-    catch (e) { alert(e.message); }
-  },
-  delPhoto: async id => { if (confirm("Delete this photo?")) await deleteDoc(doc(db, "photos", id)); },
-  addAdmin: async () => {
-    const email = $("new-admin").value.trim().toLowerCase(); if (!email) return;
-    await setDoc(doc(db, "admins", email), { addedAt: new Date().toISOString() });
-    $("new-admin").value = ""; loadAdmins();
-  },
-  rmAdmin: async id => { await deleteDoc(doc(db, "admins", id)); loadAdmins(); }
-};
-
-document.addEventListener("click", async e => {
-  const b = e.target.closest("[data-act]"); if (!b || !A[b.dataset.act]) return;
-  try { await A[b.dataset.act](b.dataset.id); } catch (err) { alert("Something went wrong: " + err.message); }
-});
-
-$("signup-form").addEventListener("submit", async e => {
-  e.preventDefault();
-  const u = auth.currentUser; if (!u) return;
-  try {
-    await setDoc(doc(db, "users", u.uid), {
-      uid: u.uid, name: $("reg-name").value.trim(), email: u.email, height: $("reg-h").value.trim(), position: $("reg-p").value,
-      photoURL: u.photoURL || "", status: "out", isPaid: false, guests: [], checkedInAt: 0,
-      isApproved: u.email === SUPER, isBanned: false, warning: "", createdAt: new Date().toISOString()
-    });
-    alert(u.email === SUPER ? "Registration complete." : "Profile submitted. Please wait for admin approval.");
-    location.reload();
-  } catch (err) { alert("Could not save profile: " + err.message); }
-});
-
-$("sched-form").addEventListener("submit", async e => {
-  e.preventDefault();
-  if (!confirm("Saving the schedule resets attendance, payments and custom teams. Continue?")) return;
-  try {
-    const [h, m] = ($("s-start").value || "18:00").split(":").map(Number);
-    const b = writeBatch(db);
-    b.set(doc(db, "settings", "game_info"), { date: $("s-date").value, time: $("s-time").value, venue: $("s-venue").value, announcement: $("s-msg").value, startMinutes: h * 60 + m });
-    b.delete(doc(db, "settings", "custom_matches"));
-    await b.commit();
-    const all = (await getDocs(collection(db, "users"))).docs;
-    for (let i = 0; i < all.length; i += 400) {
-      const bb = writeBatch(db);
-      all.slice(i, i + 400).forEach(d => bb.update(d.ref, { status: "out", isPaid: false, guests: [], checkedInAt: 0 }));
-      await bb.commit();
-    }
-    alert("Schedule updated.");
-  } catch (err) { alert("Error: " + err.message); }
-});
-</script>
+<script type="module" src="script.js"></script>
 </body>
 </html>
