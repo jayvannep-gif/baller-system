@@ -84,7 +84,7 @@ function listen(user) {
   unsubs.push(onSnapshot(collection(db, "photos"), s => { photos = s.docs.map(d => ({ id: d.id, ...d.data() })); renderGallery(); }));
   unsubs.push(onSnapshot(collection(db, "users"), s => {
     users = s.docs.map(d => d.data());
-    pool = buildPool(); renderProfile(); renderRoster(); renderBoard(); renderMatches(); if (isAdmin) renderAdminUsers();
+    pool = buildPool(); renderProfile(); renderRoster(); renderBoard(); renderMatches(); if (isAdmin) { renderAdminUsers(); renderUnpaid(); }
   }));
   const q = isAdmin ? collection(db, "messages") : query(collection(db, "messages"), where("senderUid", "==", user.uid));
   unsubs.push(onSnapshot(q, s => { msgs = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || "")); renderMsgs(); }));
@@ -196,6 +196,19 @@ function renderAdminUsers() {
     <button class="btn-o s bad" data-act="ban" data-id="${esc(u.uid)}">${u.isBanned ? "Unblock" : "Block"}</button></div></div>`).join("");
 }
 
+
+/* ---------- unpaid list (checked-in players who haven't paid; guests count under their host) ---------- */
+const unpaidUsers = () => users.filter(u => u.status === "in" && !u.isPaid && !u.isBanned && (u.isApproved || u.email === SUPER));
+function renderUnpaid() {
+  const list = unpaidUsers();
+  $("unpaid-count").textContent = list.length ? `(${list.length})` : "";
+  $("unpaid-list").innerHTML = list.length ? list.map(u => {
+    const g = (u.guests || []).length;
+    return `<li><span><strong>${esc(u.name)}</strong>${g ? `<span class="pos">+${g} guest${g > 1 ? "s" : ""}</span>` : ""}${u.arrived ? `<i class="dot" title="At the venue"></i>` : ""}</span>
+    <button class="btn s" data-act="pay" data-id="${esc(u.uid)}">Mark paid</button></li>`;
+  }).join("") : `<li class="muted">Everyone who checked in has paid.</li>`;
+}
+
 async function loadAdmins() {
   const s = await getDocs(collection(db, "admins"));
   $("admins").innerHTML = s.docs.map(d => `<li style="margin-bottom:4px">${esc(d.id)} <button class="btn-o s bad" data-act="rmAdmin" data-id="${esc(d.id)}">Remove</button></li>`).join("");
@@ -232,6 +245,12 @@ const A = {
   reply: async id => {
     const t = $("reply-" + id).value.trim(); if (!t) return;
     await updateDoc(doc(db, "messages", id), { replies: arrayUnion({ sender: auth.currentUser.email === SUPER ? "Super Admin" : "Admin", text: t, createdAt: new Date().toISOString() }) });
+  },
+  copyUnpaid: async () => {
+    const list = unpaidUsers();
+    if (!list.length) return alert("No unpaid players.");
+    const text = `Unpaid (${info.date || "this game"}):\n` + list.map((u, i) => `${i + 1}. ${u.name}${(u.guests || []).length ? ` +${u.guests.length} guest(s)` : ""}`).join("\n");
+    try { await navigator.clipboard.writeText(text); alert("List copied."); } catch { prompt("Copy this list:", text); }
   },
   approve: id => upd(id, { isApproved: true }),
   pay: id => upd(id, { isPaid: !byUid(id).isPaid }),
