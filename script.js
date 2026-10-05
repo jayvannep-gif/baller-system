@@ -156,6 +156,7 @@ function renderProfile() {
     <div class="row between"><div class="row"><img class="av" src="${esc(d.photoURL || NOPHOTO)}" width="58" height="58" alt="" style="border-color:var(--ball)">
       <div><h3 class="display">${esc(d.name)}</h3><p class="muted sm">${esc(d.position)} | ${esc(d.height || "N/A")}</p></div></div>${badge(d)}</div>
     <div class="stat"><b>${yearCount(d)}</b><span class="muted sm">games played in ${new Date().getFullYear()}</span></div>
+    ${isAdmin && yearCount(d) ? `<button class="btn-o s warn" data-act="resetYear" data-id="${esc(d.uid)}">Reset my games</button> ` : ""}
     ${isAdmin && d.status === "in" ? `<button class="btn-o s ${d.isPaid ? "bad" : "ok"}" data-act="selfPay">${d.isPaid ? "Mark myself unpaid" : "Mark myself paid"}</button>` : ""}
     <div style="margin-top:10px"><label>Update photo</label><input type="file" id="self-photo" accept="image/*">
     <label>Height (ft'in")</label><input id="self-h" value="${esc(d.height || "")}">
