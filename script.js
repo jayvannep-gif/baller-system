@@ -190,6 +190,7 @@ function renderAdminUsers() {
     ${u.status === "in" ? `<button class="btn-o s ${u.arrived ? "bad" : "ok"}" data-act="arrive" data-id="${esc(u.uid)}">${u.arrived ? "Undo arrival" : "Arrived"}</button>
     <button class="btn-o s ${u.isPaid ? "bad" : "ok"}" data-act="pay" data-id="${esc(u.uid)}">${u.isPaid ? "Set unpaid" : "Set paid"}</button>` : ""}
     <button class="btn-o s" data-act="editUser" data-id="${esc(u.uid)}">Edit</button>
+    ${yearCount(u) ? `<button class="btn-o s warn" data-act="resetYear" data-id="${esc(u.uid)}">Reset games</button>` : ""}
     <button class="btn-o s ${u.status === "in" ? "bad" : "ok"}" data-act="force" data-id="${esc(u.uid)}">${u.status === "in" ? "Cancel" : "Force play"}</button>
     <button class="btn-o s" data-act="warn" data-id="${esc(u.uid)}">Warn</button>
     ${u.warning ? `<button class="btn-o s warn" data-act="clearWarn" data-id="${esc(u.uid)}">Clear warning</button>` : ""}
@@ -251,6 +252,11 @@ const A = {
     if (!list.length) return alert("No unpaid players.");
     const text = `Unpaid (${info.date || "this game"}):\n` + list.map((u, i) => `${i + 1}. ${u.name}${(u.guests || []).length ? ` +${u.guests.length} guest(s)` : ""}`).join("\n");
     try { await navigator.clipboard.writeText(text); alert("List copied."); } catch { prompt("Copy this list:", text); }
+  },
+  resetYear: async id => {
+    const u = byUid(id), y = String(new Date().getFullYear());
+    if (!confirm(`Reset ${u.name}'s ${y} games (${yearCount(u)}) to 0? Other years are kept.`)) return;
+    await upd(id, { attendedDates: (u.attendedDates || []).filter(d => !d.startsWith(y)) });
   },
   approve: id => upd(id, { isApproved: true }),
   pay: id => upd(id, { isPaid: !byUid(id).isPaid }),
