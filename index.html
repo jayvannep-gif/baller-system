@@ -16,7 +16,7 @@
 <div id="login-page" class="page center"><div class="hero">
   <svg class="ball" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path d="M4 50h92M50 4v92M17 17c20 20 20 46 0 66M83 17c-20 20-20 46 0 66"/></svg>
   <h1 class="logo">BALLER<span>CLUB</span></h1>
-  <p class="muted">Tuesday Night Run, 7PM to 10PM</p>
+  <p class="muted">Tuesday Night Run, 6PM to 10PM</p>
   <button class="btn big" data-act="login">Sign in with Google</button>
 </div></div>
 
@@ -100,11 +100,16 @@
         <label>Time shown to players</label><input id="s-time" placeholder="6:00 PM - 10:00 PM">
         <label>First game starts</label><input id="s-start" type="time" value="18:00">
         <label>Court</label><input id="s-venue" placeholder="Central Community Center">
-        <label>Notice</label><textarea id="s-msg" rows="3"></textarea>
         <button class="btn big" type="submit">Save and reset attendance</button>
       </form>
     </div>
     <div class="col">
+      <div class="card">
+        <h3 class="display">Notice board</h3>
+        <label>Message shown to all players</label>
+        <textarea id="s-msg" rows="3" placeholder="Notices for players..."></textarea>
+        <button class="btn big" data-act="saveNotice">Post notice</button>
+      </div>
       <div class="card"><h3 class="display">Upload game photo</h3><input id="photo-in" type="file" accept="image/*"><button class="btn big" data-act="upload">Upload photo</button></div>
       <div class="card">
         <div class="row between"><h3 class="display">Unpaid <span id="unpaid-count" class="muted"></span></h3><button class="btn-o s" data-act="copyUnpaid">Copy list</button></div>
