@@ -259,6 +259,10 @@ const A = {
     if (!confirm(`Reset ${u.name}'s ${y} games (${yearCount(u)}) to 0? Other years are kept.`)) return;
     await upd(id, { attendedDates: (u.attendedDates || []).filter(d => !d.startsWith(y)) });
   },
+  saveNotice: async () => {
+    await setDoc(doc(db, "settings", "game_info"), { announcement: $("s-msg").value.trim() }, { merge: true });
+    alert("Notice posted.");
+  },
   approve: id => upd(id, { isApproved: true }),
   pay: id => upd(id, { isPaid: !byUid(id).isPaid }),
   /* Arrived: moves the player to the front of the queue and counts the game toward their yearly total */
@@ -337,7 +341,7 @@ $("sched-form").addEventListener("submit", async e => {
   try {
     const [h, m] = ($("s-start").value || "18:00").split(":").map(Number);
     const b = writeBatch(db);
-    b.set(doc(db, "settings", "game_info"), { dateKey: $("s-key").value, date: $("s-date").value, time: $("s-time").value, venue: $("s-venue").value, announcement: $("s-msg").value, startMinutes: h * 60 + m });
+    b.set(doc(db, "settings", "game_info"), { dateKey: $("s-key").value, date: $("s-date").value, time: $("s-time").value, venue: $("s-venue").value, startMinutes: h * 60 + m }, { merge: true });
     b.delete(doc(db, "settings", "custom_matches"));
     await b.commit();
     const all = (await getDocs(collection(db, "users"))).docs;
