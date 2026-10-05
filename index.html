@@ -104,6 +104,10 @@
     </div>
     <div class="col">
       <div class="card"><h3 class="display">Upload game photo</h3><input id="photo-in" type="file" accept="image/*"><button class="btn big" data-act="upload">Upload photo</button></div>
+      <div class="card">
+        <div class="row between"><h3 class="display">Unpaid <span id="unpaid-count" class="muted"></span></h3><button class="btn-o s" data-act="copyUnpaid">Copy list</button></div>
+        <ul id="unpaid-list" class="scroll list"></ul>
+      </div>
       <div class="card"><h3 class="display">Players</h3><div id="admin-users" class="scroll"></div></div>
       <div class="card"><h3 class="display">Inbox</h3><div id="admin-msgs" class="scroll"></div></div>
     </div>
