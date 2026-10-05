@@ -87,3 +87,6 @@ button.slot.on{background:rgba(255,106,26,.25);border-color:var(--ball)}
 
 @media(max-width:600px){.teams{grid-template-columns:1fr}.logo{font-size:3rem}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.logo-img{display:block;width:min(260px,75%);margin:0 auto 6px;mix-blend-mode:screen}
+.nav-logo{width:48px;height:48px;mix-blend-mode:screen}
