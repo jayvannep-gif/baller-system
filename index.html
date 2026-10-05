@@ -9,13 +9,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 
 <div id="login-page" class="page center"><div class="hero">
-  <svg class="ball" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46"/><path d="M4 50h92M50 4v92M17 17c20 20 20 46 0 66M83 17c-20 20-20 46 0 66"/></svg>
-  <h1 class="logo">BALLER<span>CLUB</span></h1>
+  <h1><img class="logo-img" src="basketball.jpg" alt="Tuesday Basketball Club"></h1>
   <p class="muted">Tuesday Night Run, 6PM to 10PM</p>
   <button class="btn big" data-act="login">Sign in with Google</button>
 </div></div>
@@ -40,7 +39,7 @@
 
 <div id="dashboard-page" class="page hidden">
   <nav class="nav">
-    <div><h2 class="display">Baller Club</h2><p class="muted xs">Tuesday night run</p></div>
+    <div class="row"><img class="nav-logo" src="basketball.jpg" alt=""><div><h2 class="display">Tuesday Basketball Club</h2><p class="muted xs">Tuesday night run</p></div></div>
     <div class="row"><button id="admin-nav" class="btn-o hidden" data-act="nav" data-id="admin-page">Admin</button><button class="btn-o bad" data-act="logout">Sign out</button></div>
   </nav>
 
